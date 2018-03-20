@@ -1,18 +1,32 @@
 #!/bin/bash
+# getBuildLevels.sh 
 
-dmgrAppsDir=/var/IBM/websphere/was/profiles/dmgr/config/cells/icCell/applications
-excludes=(
-    commsvc.ear
-    DefaultApplication.ear
-    ibmasyncrsp.ear
-    isclite.ear
-    ivtApp.ear
-    OTiS.ear
-    query.ear
-    WebSphereOauth20SP.ear
-    WebSphereWSDM.ear
-)
-notAvailable='Data missing from manifest'
+# Source prereqs
+scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. /etc/ictools.conf
+. ${scriptDir}/utils.sh
+
+function init() {
+
+    dmgrAppsDir=${wasDmgrProfile}/config/cells/${wasCellName}/applications
+    notAvailable="${redText}Data missing from manifest${normalText}"
+
+    # Add any apps to this list that you want to ignore. Generally, that means non-Connections apps
+    excludes=(
+        commsvc.ear
+        DefaultApplication.ear
+        ibmasyncrsp.ear
+        isclite.ear
+        ivtApp.ear
+        OTiS.ear
+        query.ear
+        WebSphereOauth20SP.ear
+        WebSphereWSDM.ear
+    )
+
+}
+
+init
 
 # Keep track of the EARs as we are processing them
 currentEar=''
@@ -41,7 +55,7 @@ while IFS= read -r -d '' file; do
 
     # Update the currentEar, if necessary
     if [ "${ear}" != "${currentEar}" ]; then
-        printf '================================================\n'
+        log "${separator}"
         currentEar="${ear}"
         earCounter=0
     else
