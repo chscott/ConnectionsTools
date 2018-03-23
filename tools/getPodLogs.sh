@@ -28,4 +28,4 @@ function init() {
 
 init "${@}"
 
-"${kubectl}" logs --namespace "${icNamespace}" -it "${pod}"
+"${kubectl}" logs --namespace "${icNamespace}" --container "" "${pod}"

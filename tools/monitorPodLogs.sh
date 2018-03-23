@@ -1,5 +1,5 @@
 #!/bin/bash
-# getPodLogs.sh: Print the logs from the pod
+# monitorPodLogs.sh: Monitor pod logs in real time
 
 # Source the prereqs
 scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
