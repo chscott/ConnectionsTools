@@ -24,9 +24,11 @@ function init() {
         log "Usage: sudo validateXML.sh XML_FILE"
         exit 1
     else
-        xsdFile="$(dirname "${xmlFile}")/$(basename "${xmlFile}" ".xml").xsd"
+        directory="$(dirname "${xmlFile}")"
+        file="$(basename "${xmlFile}")"
+        base="${file%.*}"
+        xsdFile="${directory}/${base}.xsd"
     fi 
-
 }
 
 init "${1}"

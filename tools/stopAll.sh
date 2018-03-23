@@ -29,9 +29,12 @@ init
 "${scriptDir}/stopDmgr.sh"
 
 # Stop IHS
-stopIHSServer
+"${scriptDir}/stopIHS.sh"
 
 # Stop Solr
-stopSolrServer
+"${scriptDir}/stopSolr.sh"
+
+# Stop DB2
+"${scriptDir}/stopDB2.sh"
 
 # Stop Pink components

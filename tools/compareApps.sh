@@ -3,8 +3,8 @@
 
 # Source prereqs
 scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. /etc/ictools.conf
-. "${scriptDir}"/utils.sh
+. "/etc/ictools.conf"
+. "${scriptDir}/utils.sh"
 
 # Print the help text
 function usage() {
@@ -36,33 +36,33 @@ function init() {
     fi 
 
     # Verify ictools.conf data is available
-    if [[ "${wasProfileRoot}" == '' || "${wasCellName}" == '' ]]; then
+    if [[ -z "${wasProfileRoot}" || -z "${wasCellName}" ]]; then
         log "The wasProfileRoot and wasCellName variables must be set in /etc/ictools.conf"
         exit 1
     fi 
 
     # Verify user input is available 
-    if [[ ${1} == '' || ${2} == '' ]]; then
+    if [[ -z "${1}" || -z "${2}" ]]; then
         usage
         exit 1
     else
-        profile1="${wasProfileRoot}"/${1}
-        profile2="${wasProfileRoot}"/${2}
+        profile1="${wasProfileRoot}/${1}"
+        profile2="${wasProfileRoot}/${2}"
     fi
 
     # Verify both directories have deployed applications 
-    ls -d "${profile1}"/installedApps/* >/dev/null 2>&1
+    ls -d "${profile1}/installedApps/"* >/dev/null 2>&1
     profile1HasApps=${?}
-    ls -d "${profile2}"/installedApps/* >/dev/null 2>&1
+    ls -d "${profile2}/installedApps/"* >/dev/null 2>&1
     profile2HasApps=${?} 
    
-    if [[ ! -d ${profile1} && ! -d ${profile2} ]]; then
+    if [[ ! -d "${profile1}" && ! -d "${profile2}" ]]; then
         log "${profile1} and ${profile2} do not exist"
         exit 1
-    elif [[ ! -d ${profile1} ]]; then
+    elif [[ ! -d "${profile1}" ]]; then
         log "${profile1} does not exist"
         exit 1 
-    elif [[ ! -d ${profile2} ]]; then
+    elif [[ ! -d "${profile2}" ]]; then
         log "${profile2} does not exist"
         exit 1 
     elif [[ ${profile1HasApps} > 0 && ${profile2HasApps} > 0 ]]; then
@@ -82,15 +82,15 @@ function init() {
 function briefMode() {
 
     local excludeApps="${1}"
-    local dir1="${profile1}"/installedApps/"${wasCellName}"/
-    local dir2="${profile2}"/installedApps/"${wasCellName}"/
+    local dir1="${profile1}/installedApps/${wasCellName}"/
+    local dir2="${profile2}/installedApps/${wasCellName}"/
 
     # Generate the list of apps that are out of sync 
     ifstmp=${IFS}
     IFS=$'\n'
     apps=($(diff --brief --recursive "${dir1}" "${dir2}" | \
         grep -v -E "${excludeApps}" | \
-        awk -F '[/:]' '{for(i=0;i<NF;i++)if($i~/.ear/)app=$i; print app}' | \
+        awk -F "[/:]" '{for(i=0;i<NF;i++)if($i~/.ear/)app=$i; print app}' | \
         sort | \
         uniq))
     IFS=${ifstmp}
@@ -115,8 +115,8 @@ function briefMode() {
 function detailsMode() {
 
     local excludeApps="${1}"
-    local dir1="${profile1}"/installedApps/"${wasCellName}"/
-    local dir2="${profile2}"/installedApps/"${wasCellName}"/
+    local dir1="${profile1}/installedApps/${wasCellName}"/
+    local dir2="${profile2}/installedApps/${wasCellName}"/
 
     # Generate the list of files that differ
     diff --brief --recursive "${dir1}" "${dir2}" | grep -v -E "${excludeApps}"
@@ -128,9 +128,9 @@ function detailsMode() {
 
 }
 
-init ${1} ${2}
+init "${1}" "${2}"
 
-log "Comparing application files in profiles ${profile1} and ${profile2}..."
+log "Comparing application files in profiles. This may take several minutes..."
 
 # Filter out any exclude apps (see /etc/ictools.conf)
 regexp=""

@@ -19,16 +19,19 @@ function init() {
 
 init
 
+# Start DB2
+"${scriptDir}/startDB2.sh"
+
 # Start Solr
-startSolrServer
+"${scriptDir}/startSolr.sh"
 
-# Stop IHS
-startIHSServer
+# Start IHS
+"${scriptDir}/startIHS.sh"
 
-# Start WAS nodeagents
-"${scriptDir}/startNodeagents.sh"
+# Start WAS Deployment Manager
+"${scriptDir}/startDmgr.sh"
 
-# Start WAS application servers
+# Start WAS nodeagents and application servers
 "${scriptDir}/startAppServers.sh"
 
 # Stop Pink components

@@ -8,7 +8,6 @@ scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 function usage() {
 
-    log "Usage: compareApps.sh <profile1> <profile2>"
     log "Usage: getAppLogs.sh --profile PROFILE [--app APP] [--duration DURATION]"
     log ""
     log "(Required) PROFILE is the name of a WebSphere profile"

@@ -36,6 +36,9 @@ for profile in "${profiles[@]}"; do
 
 done
 
+# Check status for DB2
+#getDB2ServerStatus
+
 # Check status for IHS
 getIHSServerStatus
 
