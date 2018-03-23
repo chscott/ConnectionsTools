@@ -1,20 +1,31 @@
 #!/bin/bash
+# getPodLogs.sh: Print the logs from the pod
 
+# Source the prereqs
 scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "/etc/ictools.conf"
 . "${scriptDir}/utils.sh"
 
-# Is this running interactively?
-if [ -t 0 ]; then
-    # No, so get the pod name from $1 
-    if [ -z ${1} ]; then
-        printf '%s\n' 'No pod specified'
-        exit 1
+function init() {
+
+    checkForRoot
+
+    # Is this running interactively?
+    if [[ -t 0 ]]; then
+        # No, so get the pod name from $1 
+        if [[ -z "${1}" ]]; then
+            log "Usage: sudo getPodLogs.sh POD_NAME"
+            exit 1
+        else
+            pod="${1}"
+        fi
     else
-        pod="${1}"
-        ${kubectl} logs --namespace ${icNamespace} --container "" "${pod}"
+        # Yes, so get the pod name from stdin
+        pod="$(cat -)"
     fi
-else
-    # Yes, so get the pod name from stdin
-    pod="$(cat -)"
-    ${kubectl} attach --namespace ${icNamespace} -it "${pod}"
-fi
+
+}
+
+init "${@}"
+
+"${kubectl}" logs --namespace "${icNamespace}" -it "${pod}"
