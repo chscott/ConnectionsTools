@@ -9,19 +9,14 @@ scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 function init() {
 
     checkForRoot
+    checkForK8s
 
-    # Is this running interactively?
-    if [[ -t 0 ]]; then
-        # No, so get the pod name from $1 
-        if [[ -z "${1}" ]]; then
-            log "Usage: sudo getPodShell.sh POD_NAME"
-            exit 1
-        else
-            pod="${1}"
-        fi
+    # Get the pod name (required)
+    if [[ -z "${1}" ]]; then
+        log "Usage: sudo getPodShell.sh POD_NAME"
+        exit 1
     else
-        # Yes, so get the pod name from stdin
-        pod="$(cat -)"
+        pod="${1}"
     fi
 
 }

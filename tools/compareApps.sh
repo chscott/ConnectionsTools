@@ -9,7 +9,7 @@ scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Print the help text
 function usage() {
 
-    log "Usage: compareApps.sh <profile1> <profile2> [details]"
+    log "Usage: ? sudo compareApps.sh <profile1> <profile2> [details]"
     log "Use the profile name only. Path information will be prepended automatically"
     log ""
     log "Examples:" 

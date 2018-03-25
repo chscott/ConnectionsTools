@@ -12,12 +12,23 @@ function init() {
     checkForRoot
     
     # Build an array of WAS profiles
-    cd "${wasProfileRoot}"
-    profiles=($(ls -d *))
+    if [[ -d ${wasProfileRoot} ]]; then
+        cd "${wasProfileRoot}"
+        profiles=($(ls -d *))
+    fi
 
 }
 
 init 
+
+# Check status for DB2
+getDB2ServerStatus
+
+# Check status for IHS
+getIHSServerStatus
+
+# Check status for Solr
+getSolrServerStatus
 
 # Check status for WAS servers
 for profile in "${profiles[@]}"; do
@@ -35,14 +46,5 @@ for profile in "${profiles[@]}"; do
     fi
 
 done
-
-# Check status for DB2
-#getDB2ServerStatus
-
-# Check status for IHS
-getIHSServerStatus
-
-# Check status for Solr
-getSolrServerStatus
 
 # Check status for Pink components 

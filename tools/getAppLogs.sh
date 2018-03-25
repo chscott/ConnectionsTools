@@ -39,7 +39,7 @@ function init() {
     checkForRoot
 
     # Verify ictools.conf data is available
-    if [[ "${wasProfileRoot}" == "" || "${wasCellName}" == "" ]]; then
+    if [[ -z "${wasProfileRoot}" || -z "${wasCellName}" ]]; then
         log "The wasProfileRoot and wasCellName variables must be set in /etc/ictools.conf"
         exit 1
     fi 
@@ -64,15 +64,21 @@ function init() {
     done
 
     # Verify we have a profile
-    if [ -z "${profile}" ]; then
+    if [[ -z "${profile}" ]]; then
         usage
         exit 1
     fi
 
+    # Verify that the profile directory exists
+    if [[ ! -d "${wasProfileRoot}/${profile}" ]]; then
+        log "The specified profile ${profile} does not exist on this system. Exiting."
+        exit 1
+    fi 
+
     # If no app was specified, get all logs
-    getAllApps=false
+    getAllApps="false"
     if [ -z "${app}" ]; then
-        getAllApps=true 
+        getAllApps="true" 
         app="All"
     fi
 

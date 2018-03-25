@@ -34,6 +34,42 @@ function checkForRoot() {
 
 }
 
+# Tests to make sure the WAS Deployment Manager is available on this system
+function checkForDmgr() {
+
+    local script="$(basename "${0}")"
+
+    if [[ ! -d "${wasDmgrProfile}" ]]; then
+        log "${script} can only run on the Deployment Manager node. Exiting."
+        exit 1
+    fi
+
+}
+
+# Tests to make sure Connections is installed on this system
+function checkForIC() {
+
+    local script="$(basename "${0}")"
+
+    if [[ ! -d "${icInstallDir}" ]]; then
+        log "${script} can only run on Connections nodes. Exiting."
+        exit 1
+    fi
+
+}
+
+# Tests to make sure Kubernetes is available on this system
+function checkForK8s() {
+
+    local script="$(basename "${0}")"
+
+    if [[ ! -x "${kubectl}" ]]; then
+        log "${script} can only run on Component Pack nodes. Exiting."
+        exit 1
+    fi
+
+}
+
 # Print message
 # $1: message to print
 function log() {
@@ -92,8 +128,8 @@ function getWASServerStatus() {
     # This approach is much faster than using serverStatus.sh and unlikely to yield false positives
     ps -ef | grep -v "grep" | grep "${profile}" | awk '{print $NF}' | grep "${server}" >/dev/null 2>&1
 
-    # If we found a match, the server is started
     if [[ ${?} == 0 ]]; then
+        # If we found a match, the server is started
         if [[ "${noDisplay}" == "true" ]]; then
             # Return status via subshell
             echo "STARTED"
@@ -101,8 +137,8 @@ function getWASServerStatus() {
             # Return status via display
             printf "${right3Column}" "${greenText}STARTED${normalText}"
         fi
-    # If we did not find a match, the server is stopped
     else 
+        # If we did not find a match, the server is stopped
         if [[ "${noDisplay}" == "true" ]]; then
             # Return status via subshell
             echo "STOPPED"
@@ -171,11 +207,11 @@ function getIHSServerStatus() {
     # See if the server is running
     ps -ef | grep "${ihsInstallDir}/bin/httpd" | grep -v "grep" >/dev/null 2>&1
 
-    # If we found a match, the server is started
     if [[ ${?} == 0 ]]; then
+        # If we found a match, the server is started
         printf "${right2Column}" "${greenText}STARTED${normalText}"
-    # If we did not find a match, the server is stopped
     else 
+        # If we did not find a match, the server is stopped
         printf "${right2Column}" "${redText}STOPPED${normalText}"
     fi
 
@@ -246,11 +282,11 @@ function getSolrServerStatus() {
     # See if the server is running
     ps -ef | grep "solr/quick-results-collection" | grep -v "grep" >/dev/null 2>&1
 
-    # If we found a match, the server is started
     if [[ ${?} == 0 ]]; then
+        # If we found a match, the server is started
         printf "${right2Column}" "${greenText}STARTED${normalText}"
-    # If we did not find a match, the server is stopped
     else 
+        # If we did not find a match, the server is stopped
         printf "${right2Column}" "${redText}STOPPED${normalText}"
     fi
 
@@ -340,6 +376,29 @@ function stopSolrServer() {
     else
         printf "${right2Column}" "${redText}FAILURE${normalText}"
     fi 
+
+}
+
+# Prints the status of the DB2 server
+function getDB2ServerStatus() {
+
+    # If no DB2 installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
+    if [[ -z "${db2InstallDir}" || ! -d "${db2InstallDir}" ]]; then
+        exit 0
+    fi
+
+    printf "${left2Column}" "Server: DB2"
+
+    # See if the server is running
+    ps -ef | grep "db2sysc" | grep -v "grep" >/dev/null 2>&1
+
+    if [[ ${?} == 0 ]]; then
+        # If we found a match, the server is started
+        printf "${right2Column}" "${greenText}STARTED${normalText}"
+    else 
+        # If we did not find a match, the server is stopped
+        printf "${right2Column}" "${redText}STOPPED${normalText}"
+    fi
 
 }
 

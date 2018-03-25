@@ -9,8 +9,9 @@ scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 function init() {
 
     checkForRoot
+    checkForK8s
 
-    # Make sure the user provided a string to match pods
+    # Get the pod match string (required)
     if [[ -z "${1}" ]]; then
         log "Usage: getPodName.sh POD_STRING [POD_NUMBER]"
         exit 1
@@ -18,7 +19,7 @@ function init() {
         podString="${1}"
     fi 
 
-    # See if the user wants a particular pod
+    # Get the pod number (optional)
     if [[ ! -z ${2} && ${2} =~ ^[0-9]+$ ]]; then
         podNumber=${2} 
     else
@@ -29,7 +30,7 @@ function init() {
 
 init "${@}"
 
-"${scriptDir}/listPods.sh" | \
+"${scriptDir}/getPodInfo.sh" --all | \
     grep -m ${podNumber} "${podString}" | \
     tail -n 1 | \
     awk '{print $1}' 

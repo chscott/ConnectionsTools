@@ -5,14 +5,25 @@
 scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "/etc/ictools.conf"
 . "${scriptDir}/utils.sh"
-. "${wasDmgrProfile}/bin/setupCmdLine.sh"
 
 function init() {
 
     checkForRoot
+    checkForDmgr
+
+    # Verify ictools.conf data is available
+    if [[ -z "${wasDmgrProfile}" || -z "${icInstallDir}" || -z "${icFixesDir}" ]]; then
+        log "The wasDmgrProfile, icInstallDir and icFixesDir variables must be set in /etc/ictools.conf"
+        exit 1
+    fi 
+
+    # Set JAVA_HOME
+    . "${wasDmgrProfile}/bin/setupCmdLine.sh"
 
     # Must change to the updateInstall directory or WAS_HOME will be reset
     cd "${icInstallDir}/updateInstaller"
+
+    log "Getting a list of Connections fixes available to install..."
 
 }
 
