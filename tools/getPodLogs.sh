@@ -47,23 +47,18 @@ else
     "${kubectl}" logs --namespace "${icNamespace}" "${pod}"
 
     # Get the container ID so we can see if there are rotated logs
-    containerID="$( \
-        "${scriptDir}/getPodInfo.sh" "${pod}" --json | \
-        grep -m 1 "containerID" | \
-        awk -F "docker://" '{print $2}' | \
-        tr -d '\",' \
-    )"
+    containerID="$("${scriptDir}/getContainerID.sh" "${pod}")"
 
     if [[ -d "${dockerContainerDir}/${containerID}" ]]; then
         #log "Current logs are printed above. Check ${dockerContainerDir}/${containerID} for rotated logs."
         rotatedLogs=("$(find "${dockerContainerDir}/${containerID}" -name "*.log*" -exec basename {} \;)")
-        log "Current logs are printed above."
+        log "Current logs are printed above. No output means the logs have been rotated." 
         log "The following rotated logs are available in ${dockerContainerDir}/${containerID}:"
         for rotatedLog in "${rotatedLogs[@]}"; do
             log "${rotatedLog}"
         done
     else
-        log "Current logs are printed above." 
+        log "Current logs are printed above. No output means the logs have been rotated." 
         log "This pod's container exists on another node. Be sure to run this command there to check for rotated logs."
     fi
 fi

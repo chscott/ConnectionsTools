@@ -58,6 +58,18 @@ function checkForIC() {
 
 }
 
+# Tests to make sure TDI is installed on this system
+function checkForTDI() {
+
+    local script="$(basename "${0}")"
+
+    if [[ ! -d "${tdiSolutionDir}" ]]; then
+        log "${script} can only run on TDI nodes. Exiting."
+        exit 1
+    fi
+
+}
+
 # Tests to make sure Kubernetes is available on this system
 function checkForK8s() {
 

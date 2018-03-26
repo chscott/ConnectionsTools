@@ -10,17 +10,20 @@ function init() {
 
     # Make sure we're running as root
     checkForRoot
+
+    # Make sure TDI is available on this system
+    checkForTDI
     
 }
 
 init 
 
-printf "%-60.60s" "Synchronizing Profiles with LDAP..."
+printf "${left2Column}" "Synchronizing Profiles with LDAP..."
 
 "${tdiSolutionDir}/sync_all_dns.sh" >/dev/null 2>&1
 
 if [[ ${?} == 0 ]]; then
-    printf " %-7s\n" "${greenText}SUCCESS${normalText}"
+    printf "${right2Column}" "${greenText}SUCCESS${normalText}"
 else
-    printf " %-7s\n" "${redText}FAILURE${normalText}"
+    printf "${right2Column}" "${redText}FAILURE${normalText}"
 fi
