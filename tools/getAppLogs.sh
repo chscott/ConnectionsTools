@@ -75,6 +75,13 @@ function init() {
         exit 1
     fi 
 
+    # Verify that HPEL logging is configured
+    hpelFiles=$(find "${wasProfileRoot}/${profile}" -name "hpelRepository.owner" | wc -l)
+    if [[ ${hpelFiles} == 0 ]]; then
+        log "HPEL logging is not enabled for this profile. Exiting."
+        exit 1
+    fi
+
     # If no app was specified, get all logs
     getAllApps="false"
     if [ -z "${app}" ]; then
