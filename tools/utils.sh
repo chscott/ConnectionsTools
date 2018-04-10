@@ -211,7 +211,7 @@ function getIHSServerStatus() {
 
     # If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
     if [[ -z "${ihsInstallDir}" || ! -d "${ihsInstallDir}" ]]; then
-        exit 0
+        return
     fi
 
     printf "${left2Column}" "Server: IHS"
@@ -286,7 +286,7 @@ function getSolrServerStatus() {
 
     # If no Solr installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
     if [[ -z "${solrInstallDir}" || ! -d "${solrInstallDir}" ]]; then
-        exit 0
+        return
     fi
 
     printf "${left2Column}" "Server: Solr"
@@ -396,7 +396,7 @@ function getDB2ServerStatus() {
 
     # If no DB2 installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
     if [[ -z "${db2InstallDir}" || ! -d "${db2InstallDir}" ]]; then
-        exit 0
+        return
     fi
 
     printf "${left2Column}" "Server: DB2"
