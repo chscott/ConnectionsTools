@@ -9,7 +9,7 @@ identified, allowing you to quickly determine what actions need to be taken.
 $ sudo systemStatus.sh
 ```
 
-### Supported options
+### Options
 
 None.
 
