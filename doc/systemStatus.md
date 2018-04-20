@@ -5,8 +5,8 @@ services are clearly identified, allowing you to quickly determine what actions 
 
 ## Example 1: A healthy system
 
-![Healthy system](doc/images/systemStatus1.png)
+![Healthy system](images/systemStatus1.png)
 
 ## Example 2: An unhealthy system
 
-![Unhealthy system](doc/images/systemStatus2.png)
+![Unhealthy system](images/systemStatus2.png)
