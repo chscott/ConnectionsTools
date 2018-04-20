@@ -1,4 +1,4 @@
-## Overview
+### Overview
 
 ConnectionsAdminTools is a set of administrative scripts designed to make life easier for Connections administrators. The 
 scripts contain both user-friendly wrappers around existing administration tools and new tools that don't already exist in 
@@ -9,7 +9,7 @@ on every Connections node in the environment without worrying about which ones t
 its dependencies and will report an appropriate error message if you try to run a tool on a system that doesn't host the
 target component.
 
-## System requirements
+### System requirements
 
 - Linux. This package is developed and tested on Red Hat Enterprise Linux but should run without issue on any Linux     
   distribution.
@@ -18,7 +18,7 @@ target component.
 
 - root/sudo access
 
-## Basic installation
+### Basic installation
 
 1. From your Linux system, download the file.
 
@@ -65,14 +65,14 @@ target component.
 
 You are now ready to use the tools.
 
-## Advanced installation
+### Advanced installation
 
 The advanced installation involves deploying the tools to one node, as documented in the Basic installation section. Instead 
 of copying the tools to a regular directory, however, you copy them to a directory exported via NFS. Then, on each 
 Connections node, you mount the NFS directory that contains the tools. This approach makes it much easier to upgrade to new
 versions of ConnectionsAdminTools since you only need to upgrade a single node.
 
-## The tools
+### The tools
 
 - [compareApps](doc/compareApps.md)
 - [connectToMongo](doc/connectToMongo.md)
