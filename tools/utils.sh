@@ -449,9 +449,9 @@ function stopDB2Server() {
     result=$(sudo -i -u "${db2InstanceUser}" "db2stop")
 
     if [[ "${result}" =~ "SQL1064N" || "${result}" =~ "SQL1032N" ]]; then
-        printf "${right2Column}" "${greenText}STOPPED${normalText}" 
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}" 
     else
-        printf "${right2Column}" "${redText}FAILED${normalText}" 
+        printf "${right2Column}" "${redText}FAILURE${normalText}" 
     fi
 
 }

@@ -13,10 +13,36 @@ $ sudo systemStatus.sh
 
 None.
 
-### Example 1: A healthy system
+### Examples
 
-![Healthy system](images/systemStatus1.png)
+In this example, all systems are running, indicating a healthy node.
 
-### Example 2: An unhealthy system
+```Bash
+$ sudo systemStatus.sh
+Server: DB2                                                  STARTED
+Server: IHS                                                  STARTED
+Server: Solr                                                 STARTED
+Server: cognos      Profile: cognos                          STARTED
+Server: nodeagent   Profile: cognos                          STARTED
+Server: dmgr        Profile: dmgr                            STARTED
+Server: ic1         Profile: ic1                             STARTED
+Server: nodeagent   Profile: ic1                             STARTED
+Server: ic2         Profile: ic2                             STARTED
+Server: nodeagent   Profile: ic2                             STARTED
+```
 
-![Unhealthy system](images/systemStatus2.png)
+In this example, the Solr component is not running, indicating action must be taken by the administrator.
+
+```Bash
+$ sudo systemStatus.sh
+Server: DB2                                                  STARTED
+Server: IHS                                                  STARTED
+Server: Solr                                                 STOPPED
+Server: cognos      Profile: cognos                          STARTED
+Server: nodeagent   Profile: cognos                          STARTED
+Server: dmgr        Profile: dmgr                            STARTED
+Server: ic1         Profile: ic1                             STARTED
+Server: nodeagent   Profile: ic1                             STARTED
+Server: ic2         Profile: ic2                             STARTED
+Server: nodeagent   Profile: ic2                             STARTED
+```

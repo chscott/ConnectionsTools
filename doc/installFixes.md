@@ -1,12 +1,12 @@
 ## installFixes
 
-The installFixes tool makes it easy to apply iFixes to your Connections Blue environment. Simply download the iFixes on your
-Deployment Manager node's fixes directory and specify which fixes you'd like to apply.
+The installFixes tool makes it easy to apply iFixes to your Connections Blue environment. Download the iFixes to your
+Deployment Manager node's fixes directory and specify which you'd like to apply.
 
 ### Syntax
 
 ```Bash
-$ sudo installFixes.sh fix1 [fix2] [fixN]
+$ sudo installFixes.sh fix1 [fix2] [fixN] ...
 ```
 
 ### Options
@@ -14,6 +14,9 @@ $ sudo installFixes.sh fix1 [fix2] [fixN]
 None.
 
 ### Example
+
+This example first uses the [getAvailableFixes](getAvailableFixes.md) tool to identify fixes available to install and then
+uses installFixes to perform the installation.
 
 ```Bash
 $ sudo getAvailableFixes.sh

@@ -1,12 +1,12 @@
 ## uninstallFixes
 
-The uninstallFixes tool makes it easy to uninstall iFixes in your Connections Blue environment. Simply specify which 
+The uninstallFixes tool makes it easy to uninstall iFixes in your Connections Blue environment. Simply list which 
 installed fixes you'd like to remove.
 
 ### Syntax
 
 ```Bash
-$ sudo uninstallFixes.sh fix1 [fix2] [fixN]
+$ sudo uninstallFixes.sh fix1 [fix2] [fixN] ...
 ```
 
 ### Options

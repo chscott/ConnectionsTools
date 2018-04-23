@@ -75,8 +75,8 @@ versions of ConnectionsAdminTools since you only need to upgrade a single node.
 ### The tools
 
 - [compareApps](doc/compareApps.md)
+- [compareEars](doc/compareEars.md)
 - [connectToMongo](doc/connectToMongo.md)
-- [diffEars](doc/diffEars.md)
 - [getAllWikis](doc/getAllWikis.md)
 - [getAppLogs](doc/getAllAppLogs.md)
 - [getAvailableFixes](doc/getAvailableFixes.md)
@@ -104,7 +104,7 @@ versions of ConnectionsAdminTools since you only need to upgrade a single node.
 - [stopIHS](doc/stopIHS.md)
 - [stopNodeagents](doc/stopNodeagents.md)
 - [stopSolr](doc/stopSolr.md)
-- [syncNodesFull](doc/syncNodesFull.md)
+- [syncNodes](doc/syncNodes.md)
 - [syncUsers](doc/syncUsers.md)
 - [systemStatus](doc/systemStatus.md)
 - [uninstallFixes](doc/uninstallFixes.md)

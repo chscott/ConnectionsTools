@@ -8,7 +8,7 @@ scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 function usage() {
 
-    log "Usage: ? sudo getPodLogs.sh POD_NAME [--monitor|--print]"
+    log "Usage: sudo getPodLogs.sh POD_NAME [--monitor|--print]"
 
 }
 

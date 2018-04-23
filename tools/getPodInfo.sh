@@ -13,16 +13,16 @@ function usage() {
     log "Examples:"
     log ""
     log "Get the info for all pods:"
-    log "? sudo getPodInfo.sh --all"
+    log "$ sudo getPodInfo.sh --all"
     log ""
     log "Get the info for all pods in JSON format:"
-    log "? sudo getPodInfo.sh --all --json"
+    log "$ sudo getPodInfo.sh --all --json"
     log ""
     log "Get the info for a pod named foo:"
-    log "? sudo getPodInfo.sh foo"
+    log "$ sudo getPodInfo.sh foo"
     log ""
     log "Get the info for a pod named foo in JSON format:"
-    log "? sudo getPodInfo.sh foo --json"
+    log "$ sudo getPodInfo.sh foo --json"
 
 }
 

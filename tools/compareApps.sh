@@ -9,16 +9,16 @@ scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Print the help text
 function usage() {
 
-    log "Usage: ? sudo compareApps.sh <profile1> <profile2> [details]"
+    log "Usage: sudo compareApps.sh <profile1> <profile2> [--details]"
     log "Use the profile name only. Path information will be prepended automatically"
     log ""
     log "Examples:" 
     log ""
     log "Print a list of apps that are out of sync between the profiles:"
-    log "? sudo compareApps.sh ic1 ic2"
+    log "$ sudo compareApps.sh ic1 ic2"
     log ""
     log "Print a list of files that are out of sync between the profiles:"
-    log "? sudo compareApps.sh ic1 ic2 details" 
+    log "$ sudo compareApps.sh ic1 ic2 --details" 
 
 }
 
@@ -147,7 +147,7 @@ done
 # Invoke the appropriate mode, based on the optional $3 argument
 if [[ -z "${3}" ]]; then
     briefMode "${regexp}"
-elif [[ "${3}" == "details" ]]; then
+elif [[ "${3}" == "--details" ]]; then
     detailsMode "${regexp}"
 else
     usage
