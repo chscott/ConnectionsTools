@@ -1,17 +1,22 @@
 #! /bin/bash
 
+# Source prereqs
+scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "/etc/ictools.conf"
+. "${scriptDir}/utils.sh"
+
 string="${1}"
 
 if [ -z "${string}" ]; then
-    printf "No string supplied. Exiting.\n"
+    log "No search string supplied. Exiting."
     exit 1
 else
-    printf "Searching JARs in $(pwd) for '${string}'...\n"
-    originalIFS=${IFS}
-    IFS=$'\n'
-    find . -iname "*.jar" -print | while read -r jar; do
-        unzip -c "${jar}" | grep -q -i "${string}"
-    done
-    IFS=${originalIFS}
-
+    log "Searching JARs in $(pwd) for '${string}'..."
+    find . -name '*.jar' -printf "test ! -d \"%p\" && unzip -c \"%p\" | grep -q \"${string}\" && echo %p\n" | sh
+    #files=($(find . -name '*.jar'))
+    #for file in "${files[@]}"; do
+    #    if [[ ! -d "${file}" ]]; then
+    #        unzip -c "${file}" | grep -q "${string}"
+    #    fi
+    #done
 fi

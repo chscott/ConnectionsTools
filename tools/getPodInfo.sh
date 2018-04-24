@@ -37,7 +37,7 @@ function init() {
         exit 1
     fi 
 
-    # Get the pod name or the special 'all' (required)
+    # Get the pod name or the special '--all' (required)
     if [[ -z "${1}" ]]; then
         usage
         exit 1

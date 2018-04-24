@@ -1,7 +1,7 @@
 ## connectToMongo
 
-The connectToMongo tool connects you to the Mongo shell of the master Mongo replica. A cheatsheet of common Mongo commands is
-provided as a header to the shell.
+The connectToMongo tool connects you to the Mongo CLI of the master Mongo replica pod. A cheatsheet of common Mongo commands 
+is provided as a header to the shell.
 
 ### Syntax
 
