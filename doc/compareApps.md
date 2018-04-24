@@ -1,6 +1,6 @@
 ## compareApps
 
-The compareEars tool allows you to check the expanded WebSphere application files in two profiles to see if they are the same. This is useful when troubleshooting issues where the process of expanding EAR files may encounter errors that are not 
+The compareApps tool allows you to check the expanded WebSphere application files in two profiles to see if they are the same. This is useful when troubleshooting issues where the process of expanding EAR files may encounter errors that are not 
 visible to the administrator.
 
 Note that the profile directories must be accessible from the system on which you run the command. This can be via a remote 
