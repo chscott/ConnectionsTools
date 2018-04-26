@@ -1,14 +1,16 @@
 #!/bin/bash
-# getAvailableFixes.sh: Print a list of available but uninstalled fixes
-
-# Source the prereqs
-scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "/etc/ictools.conf"
-. "${scriptDir}/utils.sh"
 
 function init() {
 
+    # Source the prereqs
+    scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "/etc/ictools.conf"
+    . "${scriptDir}/utils.sh"
+
+    # Make sure we're running as root
     checkForRoot
+
+    # Make sure this is a Deployment Manager node
     checkForDmgr
 
     # Verify ictools.conf data is available
@@ -23,11 +25,11 @@ function init() {
     # Must change to the updateInstall directory or WAS_HOME will be reset
     cd "${icInstallDir}/updateInstaller"
 
-    log "Getting a list of Connections fixes available to install..."
+    log "Getting a list of Connections fixes available to install in ${icFixesDir}..."
 
 }
 
-init
+init "${@}"
 
 # See which fixes have already been installed
 installedFixes=($( \

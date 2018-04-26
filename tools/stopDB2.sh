@@ -1,17 +1,17 @@
 #!/bin/bash
-# APP_NAME: DESCRIPTION
-
-# Source prereqs
-scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "/etc/ictools.conf"
-. "${scriptDir}/utils.sh"
 
 function init() {
 
+    # Source prereqs
+    scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "/etc/ictools.conf"
+    . "${scriptDir}/utils.sh"
+
+    # Make sure we're running as root
     checkForRoot
 
 }
 
-init
+init "${@}"
 
 stopDB2Server

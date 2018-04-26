@@ -1,11 +1,21 @@
 #! /bin/bash
 
-# Source prereqs
-scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "/etc/ictools.conf"
-. "${scriptDir}/utils.sh"
+function init() {
 
-string="${1}"
+    # Source prereqs
+    scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "/etc/ictools.conf"
+    . "${scriptDir}/utils.sh"
+
+    # Make sure we're running as root
+    checkForRoot
+
+    # Variables
+    string="${1}"
+
+}
+
+init "${@}"
 
 if [ -z "${string}" ]; then
     log "No search string supplied. Exiting."
@@ -13,10 +23,4 @@ if [ -z "${string}" ]; then
 else
     log "Searching JARs in $(pwd) for '${string}'..."
     find . -name '*.jar' -printf "test ! -d \"%p\" && unzip -c \"%p\" | grep -q \"${string}\" && echo %p\n" | sh
-    #files=($(find . -name '*.jar'))
-    #for file in "${files[@]}"; do
-    #    if [[ ! -d "${file}" ]]; then
-    #        unzip -c "${file}" | grep -q "${string}"
-    #    fi
-    #done
 fi

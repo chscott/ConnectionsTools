@@ -39,8 +39,8 @@ target component.
    ```Bash
    $ sudo chown root.icadmins ConnectionsAdminTools-master/etc/*
    $ sudo chmod 770 ConnectionsAdminTools-master/etc/*
-   $ sudo chown root.icadmins ConnectionsAdminTools-master/tools/*
-   $ sudo chmod 770 ConnectionsAdminTools-master/tools/*
+   $ sudo chown -R root.icadmins ConnectionsAdminTools-master/tools/*
+   $ sudo chmod -R 770 ConnectionsAdminTools-master/tools/*
    ```
    
 4. Copy ConnectionsAdminTools-master/etc/ictools.conf to /etc/ictools.conf.
@@ -52,7 +52,7 @@ target component.
 5. Copy the ConnectionsAdminTools-master/tools files to a location of your choice. I recommend /usr/local/sbin.
 
    ```Bash
-   $ sudo cp -p ConnectionsAdminTools-master/tools/* /usr/local/sbin/
+   $ sudo cp -p -R ConnectionsAdminTools-master/tools/* /usr/local/sbin/
    
 6. (Optional but recommended) Add the directory you chose in Step 5 to your path. Note that for sudo, you'll need to add the
    directory to the secure_path variable in /etc/sudoers. For example:
@@ -80,6 +80,7 @@ versions of ConnectionsAdminTools since you only need to upgrade a single node.
 - [connectToRedis](doc/connectToRedis.md)
 - [getAllWikis](doc/getAllWikis.md)
 - [getAppLogs](doc/getAppLogs.md)
+- [getAppRoles](doc/getAppRoles.md)
 - [getAvailableFixes](doc/getAvailableFixes.md)
 - [getBuildLevels](doc/getBuildLevels.md)
 - [getCommSize](doc/getCommSize.md)
@@ -110,3 +111,4 @@ versions of ConnectionsAdminTools since you only need to upgrade a single node.
 - [systemStatus](doc/systemStatus.md)
 - [uninstallFixes](doc/uninstallFixes.md)
 - [validateXML](doc/validateXML.md)
+- [wsadmin](doc/wsadmin.md)

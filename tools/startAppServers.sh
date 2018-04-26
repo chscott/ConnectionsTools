@@ -1,12 +1,11 @@
 #!/bin/bash
-# startAppServers.sh: Start all WAS application servers on the system
-
-# Source the prereqs
-scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "/etc/ictools.conf"
-. "${scriptDir}/utils.sh"
 
 function init() {
+
+    # Source the prereqs
+    scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "/etc/ictools.conf"
+    . "${scriptDir}/utils.sh"
 
     # Make sure we're running as root
     checkForRoot
@@ -17,7 +16,7 @@ function init() {
 
 }
 
-init
+init "${@}"
 
 # Start the nodeagents
 "${scriptDir}/startNodeagents.sh"

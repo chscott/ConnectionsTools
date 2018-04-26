@@ -1,15 +1,17 @@
 #!/bin/bash
-# startDmgr.sh: Start Deployment Manager
-
-# Source the prereqs
-scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "/etc/ictools.conf" 
-. "${scriptDir}/utils.sh"
 
 function init() {
 
+    # Source the prereqs
+    scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "/etc/ictools.conf" 
+    . "${scriptDir}/utils.sh"
+
     # Make sure we're running as root
     checkForRoot
+
+    # Make sure this is a Deployment Manager node
+    checkForDmgr
 
     # Build an array of WAS profiles
     cd "${wasProfileRoot}"
@@ -17,7 +19,7 @@ function init() {
 
 }
 
-init
+init "${@}"
 
 # Find the Deployment Manager profile
 for profile in "${profiles[@]}"; do

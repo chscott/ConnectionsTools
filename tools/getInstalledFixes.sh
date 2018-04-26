@@ -1,22 +1,25 @@
 #!/bin/bash
 
-# Source the prereqs
-scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "/etc/ictools.conf"
-. "${scriptDir}/utils.sh"
-. "${wasDmgrProfile}/bin/setupCmdLine.sh"
-
 function init() {
+
+    # Source the prereqs
+    scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "/etc/ictools.conf"
+    . "${scriptDir}/utils.sh"
+    . "${wasDmgrProfile}/bin/setupCmdLine.sh"
 
     # Make sure we're running as root
     checkForRoot
+
+    # Make sure this is a Deployment Manager node
+    checkForDmgr
 
     # Must change to the updateInstall directory or WAS_HOME will be reset
     cd "${icInstallDir}/updateInstaller"
 
 }
 
-init
+init "${@}"
 
 # Get an array of installed fixes 
 installedFixes=($( \

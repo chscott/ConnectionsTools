@@ -1,10 +1,4 @@
 #!/bin/bash
-# compareApps.sh <profile1> <profile2>
-
-# Source prereqs
-scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "/etc/ictools.conf"
-. "${scriptDir}/utils.sh"
 
 # Print the help text
 function usage() {
@@ -25,6 +19,11 @@ function usage() {
 # Verify the script has the prereqs needed to run
 function init() {
     
+    # Source prereqs
+    scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "/etc/ictools.conf"
+    . "${scriptDir}/utils.sh"
+
     # Make sure we're running as root
     checkForRoot
 

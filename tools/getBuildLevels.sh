@@ -1,14 +1,16 @@
 #!/bin/bash
-# getBuildLevels.sh 
-
-# Source prereqs
-scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "/etc/ictools.conf"
-. "${scriptDir}/utils.sh"
 
 function init() {
 
+    # Source prereqs
+    scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "/etc/ictools.conf"
+    . "${scriptDir}/utils.sh"
+
+    # Make sure we're running as root
     checkForRoot
+
+    # Make sure this is a Deployment Manager node
     checkForDmgr
 
     # Verify ictools.conf data is available
@@ -34,7 +36,7 @@ function init() {
 
 }
 
-init
+init "${@}"
 
 # Keep track of the EARs as we are processing them
 currentEar=""

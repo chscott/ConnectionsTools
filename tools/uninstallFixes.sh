@@ -1,16 +1,18 @@
 #!/bin/bash
-# uninstallFixes.sh: Uninstall Connections fixes
-
-# Source the prereqs
-scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "/etc/ictools.conf" 
-. "${scriptDir}/utils.sh"
-. "${wasDmgrProfile}/bin/setupCmdLine.sh"
 
 function init() {
 
+    # Source the prereqs
+    scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "/etc/ictools.conf" 
+    . "${scriptDir}/utils.sh"
+    . "${wasDmgrProfile}/bin/setupCmdLine.sh"
+
     # Make sure we're running as root
     checkForRoot
+
+    # Make sure this is a Deployment Manager node
+    checkForDmgr
 
     # Get the fixes to uninstall
     fixes=""

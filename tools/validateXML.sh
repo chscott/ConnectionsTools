@@ -1,12 +1,12 @@
 #!/bin/bash
-# validateXML.sh: Validate Connections XML files against their corresponding XSDs
-
-# Source the prereqs
-scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "/etc/ictools.conf"
-. "${scriptDir}/utils.sh"
 
 function init() {
+
+    # Source the prereqs
+    scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "/etc/ictools.conf"
+    . "${scriptDir}/utils.sh"
+
 
     # Make sure we're running as root
     checkForRoot
@@ -31,6 +31,6 @@ function init() {
     fi 
 }
 
-init "${1}"
+init "${@}"
 
 xmllint -schema "${xsdFile}" "${xmlFile}" --noout

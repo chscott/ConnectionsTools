@@ -1,14 +1,16 @@
 #!/bin/bash
-# getPodName.sh: Return the pod name for the Nth pod matching the provided string 
-
-# Source the prereqs
-scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "/etc/ictools.conf"
-. "${scriptDir}/utils.sh"
 
 function init() {
 
+    # Source the prereqs
+    scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "/etc/ictools.conf"
+    . "${scriptDir}/utils.sh"
+
+    # Make sure we're running as root
     checkForRoot
+
+    # Make sure this is a Kubernetes node
     checkForK8s
 
     # Get the pod match string (required)

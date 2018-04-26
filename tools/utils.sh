@@ -4,24 +4,6 @@
 # Source prereqs
 . "/etc/ictools.conf"
 
-# This is used to give us a file descriptor to print to normal stdout since we'll be redirecting fd 1 to the script log
-#fd101=$(${ls} /proc/${BASHPID}/fd | ${grep} 101)
-#if [ -z ${fd101} ]; then
-#    exec 101>&1
-#fi
-
-# Reset the file descriptors for normal output
-#function resetOutput() {
-#    exec 1>&101 2>&1
-#}
-
-# Redirect the file descriptors for script output
-#function redirectOutput() {
-#    exec 1>>${scriptLog} 2>&1
-#    # This is needed to give process substition a chance to complete before main shell continues
-#    sleep 1
-#}
-
 # Tests to make sure the effective user ID is root
 function checkForRoot() {
 

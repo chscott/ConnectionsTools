@@ -1,15 +1,16 @@
 #!/bin/bash
-# syncNodes.sh: Sync of all WAS nodes
-
-scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "/etc/ictools.conf"
-. "${scriptDir}/utils.sh"
 
 function init() {
+
+    # Source prereqs
+    scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "/etc/ictools.conf"
+    . "${scriptDir}/utils.sh"
 
     # Make sure we're running as root
     checkForRoot
 
+    # Variables
     local mode="${1}"
 
     # See if the Deployment Manager is available
@@ -28,29 +29,24 @@ function init() {
     else
         doOfflineSync="false"
         # Online mode can only run on the Deployment Manager
-        if [[ ! -x "${wasDmgrProfile}/bin/wsadmin.sh" ]]; then
-            log "An online sync can only be run from the Deployment Manager system"
-            exit 1
-        fi
+        checkForDmgr
     fi
 
 }
 
 function onlineSync() {
 
-    log "Synchronizing active nodes..."
+    printf "${left2Column}" "Synchronizing active nodes..."
 
     # Call wsadmin with the syncNodes.py script to perform online sync
-    nodes=($( \
-        "${wasDmgrProfile}/bin/wsadmin.sh" -lang jython -user "${wasAdmin}" -password "${wasAdminPwd}" -f "${scriptDir}/syncNodes.py" | \
-        tail -n +7 | \
-        sed '/^\s$/d'
-    ))
+    nodes=($("${scriptDir}/wsadmin.sh" "${scriptDir}/wsadmin/syncNodes.py" | tail -n +7 | sed '/^\s$/d'))
 
-    for node in "${nodes[@]}"; do
-        printf "${left2Column}" "${node}"
+    # Report status
+    if [[ ${?} == 0 ]]; then
         printf "${right2Column}" "${greenText}SUCCESS${normalText}"
-    done
+    else
+        printf "${right2Column}" "${redText}FAILURE${normalText}"
+    fi
 
 }
 

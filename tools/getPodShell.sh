@@ -1,14 +1,16 @@
 #!/bin/bash
-# getPodShell.sh: Run a shell in the specified pod
-
-# Source the prereqs
-scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "/etc/ictools.conf"
-. "${scriptDir}/utils.sh"
 
 function init() {
 
+    # Source the prereqs
+    scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "/etc/ictools.conf"
+    . "${scriptDir}/utils.sh"
+
+    # Make sure we're running as root
     checkForRoot
+
+    # Make sure this is a Kubernetes node
     checkForK8s
 
     # Get the pod name (required)

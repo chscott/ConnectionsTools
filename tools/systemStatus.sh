@@ -1,12 +1,11 @@
 #!/bin/bash
-# systemStatus.sh: Get the status for all Connections server components on the system
-
-# Source prereqs
-scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-. "/etc/ictools.conf"
-. "${scriptDir}/utils.sh"
 
 function init() {
+
+    # Source prereqs
+    scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "/etc/ictools.conf"
+    . "${scriptDir}/utils.sh"
 
     # Make sure we're running as root
     checkForRoot
@@ -19,7 +18,7 @@ function init() {
 
 }
 
-init 
+init "${@}" 
 
 # Check status for DB2
 getDB2ServerStatus
