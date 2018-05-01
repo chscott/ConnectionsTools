@@ -2,7 +2,7 @@
 
 function usage() {
 
-    log "Usage: sudo getPodInfo.sh POD_NAME|--all [--json|--wide]"
+    log "Usage: sudo getPodInfo.sh POD_NAME|--all [--json|--wide|--details]"
     log ""
     log "Examples:"
     log ""
@@ -17,6 +17,12 @@ function usage() {
     log ""
     log "Get the info for a pod named foo in JSON format:"
     log "$ sudo getPodInfo.sh foo --json"
+    log ""
+    log "Get detailed info for a pod named foo in JSON format:"
+    log "$ sudo getPodInfo.sh foo --details"
+    log ""
+    log "Get detailed info for all pods:"
+    log "$ sudo getPodInfo.sh --details"
 
 }
 
@@ -50,7 +56,7 @@ function init() {
     # Get the format (optional) 
     if [[ ! -z "${2}" ]]; then
         format="${2}" 
-        if [[ "${format}" != "--json" && "${format}" != "--wide" ]]; then
+        if [[ "${format}" != "--json" && "${format}" != "--wide" && "${format}" != "--details" ]]; then
             log "Unrecognized format ${format}. Using wide format..."
             format="--wide"
         fi
@@ -62,8 +68,12 @@ function init() {
 init "${@}"
 
 # Get the pod info
-if [[ "${pod}" == "--all" ]]; then
+if [[ "${pod}" == "--all" && "${format}" != "details" ]]; then
     "${kubectl}" get pods --namespace "${icNamespace}" --output "${format}"
-else
+elif [[ "${pod}" != "--all" && "${format}" != "details" ]]; then
     "${kubectl}" get pod --namespace "${icNamespace}" --output "${format}" "${pod}"
+elif [[ "${pod}" == "--all" && "${format}" == "details" ]]; then
+    "${kubectl}" describe pods --namespace "${icNamespace}"
+elif [[ "${pod}" != "--all" && "${format}" == "details" ]]; then
+    "${kubectl}" describe pod --namespace "${icNamespace}" "${pod}"
 fi

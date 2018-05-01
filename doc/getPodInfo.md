@@ -5,17 +5,16 @@ The getPodInfo tool is a wrapper around kubectl get pod that returns information
 ### Syntax
 
 ```Bash
-$ sudo getPodInfo.sh POD_NAME | --all [--wide | --json]
+$ sudo getPodInfo.sh POD_NAME | --all [--wide | --json | --details]
 ```
 
 ### Options
 
 If no options are provided, you must specify a pod name. That name will usually be a reference to a pod acquired via the
-[getPodName](getPodName.md) tool. If you do not specify a particular pod, you must use the **--all** option to get information
-about all pods.
+[getPodName](getPodName.md) tool. If you do not specify a particular pod, you must use the **--all** option to get information about all pods.
 
 You can optionally provide the format specification. The default specification is **--wide**, but you can also specify the
-**--json** option to return a JSON object.
+**--json** option to return a JSON object or the **--details** option to return detailed information.
 
 ### Examples
 
@@ -88,4 +87,21 @@ $ sudo getPodInfo.sh --all --json
         "name": "analysisservice-1466752619-k9pcl",
         "namespace": "connections",
 }
+```
+
+Get detailed information about an orient-web-client pod.
+
+```Bash
+$ pod=$(sudo getPodName.sh orient-web-client)
+$ sudo getPodInfo.sh $pod --details
+
+Name:           orient-web-client-701389332-gzkb1
+Namespace:      connections
+Node:           9.70.186.148/9.70.186.148
+Start Time:     Wed, 07 Mar 2018 16:43:00 -0500
+Labels:         app=orient-web-client
+                mService=orient-web-client
+                name=orient-web-client
+                pod-template-hash=701389332
+...
 ```
