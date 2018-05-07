@@ -18,13 +18,13 @@ function init() {
 
 init "${@}"
 
-# Start WAS server nodeagents
+# Stop WAS server nodeagents
 for profile in "${profiles[@]}"; do
 
     # Determine the profile type
     profileKey="${wasProfileRoot}/${profile}/properties/profileKey.metadata"
     if [[ -f "${profileKey}" ]]; then
-        profileType=$(getWasProfileType "${profileKey}")
+        profileType=$(getWASProfileType "${profileKey}")
     fi
 
     if [[ "${profileType}" == "BASE" ]]; then
@@ -36,9 +36,9 @@ for profile in "${profiles[@]}"; do
         if [[ ${?} == 0 ]]; then
             # Get an array of servers (only the nodeagent!)
             servers=($(ls -d * | grep "nodeagent")) 
-            # Start the servers
+            # Stop the servers
             for server in "${servers[@]}"; do
-                startWASServer "${server}" "${wasProfileRoot}/${profile}"
+                stopWASServer "${server}" "${wasProfileRoot}/${profile}"
             done
         fi
 

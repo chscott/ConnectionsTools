@@ -18,13 +18,16 @@ function init() {
 
 init "${@}"
 
-# Stop WAS servers
+# Start the nodeagents
+"${scriptDir}/startNodeagents.sh"
+
+# Start WAS servers
 for profile in "${profiles[@]}"; do
 
     # Determine the profile type
     profileKey="${wasProfileRoot}/${profile}/properties/profileKey.metadata"
     if [[ -f "${profileKey}" ]]; then
-        profileType=$(getWasProfileType "${profileKey}")
+        profileType=$(getWASProfileType "${profileKey}")
     fi
 
     if [[ "${profileType}" == "BASE" ]]; then
@@ -38,7 +41,7 @@ for profile in "${profiles[@]}"; do
             servers=($(ls -d * | grep -v "nodeagent")) 
             # Stop the servers
             for server in "${servers[@]}"; do
-                stopWASServer "${server}" "${wasProfileRoot}/${profile}"
+                startWASServer "${server}" "${wasProfileRoot}/${profile}"
             done
         fi
 

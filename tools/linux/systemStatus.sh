@@ -11,7 +11,7 @@ function init() {
     checkForRoot
     
     # Build an array of WAS profiles
-    if [[ -d ${wasProfileRoot} ]]; then
+    if [[ -d "${wasProfileRoot}" ]]; then
         cd "${wasProfileRoot}"
         profiles=($(ls -d *))
     fi

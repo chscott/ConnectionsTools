@@ -58,7 +58,7 @@ function offlineSync() {
         # Determine the profile type
         profileKey="${wasProfileRoot}/${profile}/properties/profileKey.metadata"
         if [[ -f "${profileKey}" ]]; then
-            profileType=$(getWasProfileType "${profileKey}")
+            profileType=$(getWASProfileType "${profileKey}")
         fi
 
         if [[ "${profileType}" == "BASE" ]]; then

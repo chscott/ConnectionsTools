@@ -32,27 +32,27 @@ target component.
    $ unzip -qq master.zip
    ```
    
-3. Update the file ownership and permissions on the ConnectionsTools-master/etc and ConnectionsTools-master/tools 
+3. Update the file ownership and permissions on the ConnectionsTools-master/etc and ConnectionsTools-master/tools/linux 
    directory files. In this example deployment scenario, we want the files owned by root and a group named icadmins, both of 
    which will have full control. Other users will have no access. Your requirements may vary.
    
    ```Bash
    $ sudo chown root.icadmins ConnectionsTools-master/etc/*
    $ sudo chmod 770 ConnectionsTools-master/etc/*
-   $ sudo chown -R root.icadmins ConnectionsTools-master/tools/*
-   $ sudo chmod -R 770 ConnectionsTools-master/tools/*
+   $ sudo chown -R root.icadmins ConnectionsTools-master/tools/linux*
+   $ sudo chmod -R 770 ConnectionsTools-master/tools/linux*
    ```
    
-4. Copy ConnectionsTools-master/etc/ictools.conf to /etc/ictools.conf.
+4. Copy ConnectionsTools-master/etc/linux/ictools.conf to /etc/ictools.conf.
 
    ```Bash
-   $ sudo cp -p ConnectionsTools-master/etc/ictools.conf /etc/
+   $ sudo cp -p ConnectionsTools-master/etc/linux/ictools.conf /etc/
    ```
    
-5. Copy the ConnectionsTools-master/tools files to a location of your choice. I recommend /usr/local/sbin.
+5. Copy the ConnectionsTools-master/tools/linux files to a location of your choice. I recommend /usr/local/sbin.
 
    ```Bash
-   $ sudo cp -p -R ConnectionsTools-master/tools/* /usr/local/sbin/
+   $ sudo cp -p -R ConnectionsTools-master/tools/linux* /usr/local/sbin/
    
 6. (Optional but recommended) Add the directory you chose in Step 5 to your path. Note that for sudo, you'll need to add the
    directory to the secure_path variable in /etc/sudoers. For example:

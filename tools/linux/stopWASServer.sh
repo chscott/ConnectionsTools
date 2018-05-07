@@ -12,16 +12,17 @@ function init() {
 
     # Process the user arguments
     while [[ ${#} -gt 0 ]]; do
-        key="${1}"
+        local key="${1}"
+        local value="${2}"
         case "${key}" in
             --profile)
-                profile="${2}"
+                profile="${value}"
                 shift;shift;;
             --server)
-                server="${2}"
+                server="${value}"
                 shift;shift;;
             *)
-                log "Unrecognized argument ${1}"
+                log "Unrecognized argument ${key}"
                 shift;;
         esac
     done

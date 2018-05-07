@@ -4,11 +4,14 @@ function init() {
 
     # Source the prereqs
     scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    . "/etc/ictools.conf"
+    . "/etc/ictools.conf" 
     . "${scriptDir}/utils.sh"
 
     # Make sure we're running as root
     checkForRoot
+
+    # Make sure this is a Deployment Manager node
+    checkForDmgr
 
     # Build an array of WAS profiles
     cd "${wasProfileRoot}"
@@ -18,30 +21,31 @@ function init() {
 
 init "${@}"
 
-# Stop WAS server nodeagents
+# Find the Deployment Manager profile
 for profile in "${profiles[@]}"; do
 
     # Determine the profile type
     profileKey="${wasProfileRoot}/${profile}/properties/profileKey.metadata"
     if [[ -f "${profileKey}" ]]; then
-        profileType=$(getWasProfileType "${profileKey}")
+        profileType=$(getWASProfileType "${profileKey}")
     fi
 
-    if [[ "${profileType}" == "BASE" ]]; then
+    if [[ "${profileType}" == "DEPLOYMENT_MANAGER" ]]; then
 
         # Change to the servers directory so we can get an array of servers from the subdirectories
         cd "${wasProfileRoot}/${profile}/servers" >/dev/null 2>&1
 
-        # If there is no servers directory, skip it 
+        # If the profile directory has no servers directory, skip it
         if [[ ${?} == 0 ]]; then
-            # Get an array of servers (only the nodeagent!)
-            servers=($(ls -d * | grep "nodeagent")) 
-            # Stop the servers
+            servers=($(ls -d *)) 
+            # Stop the server (should only be one for Deployment Manager)
             for server in "${servers[@]}"; do
                 stopWASServer "${server}" "${wasProfileRoot}/${profile}"
             done
+        else
+            log "No servers were found in the ${profile} profile"
+            exit 1
         fi
-
     fi
 
 done

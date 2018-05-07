@@ -45,19 +45,20 @@ function init() {
 
     # Process the user arguments
     while [[ ${#} -gt 0 ]]; do
-        key="${1}"
+        local key="${1}"
+        local value="${2}"
         case "${key}" in
             --profile)
-                profile="${2}"
+                profile="${value}"
                 shift;shift;;
             --app)
-                app="${2}"
+                app="${value}"
                 shift;shift;;
             --duration)
-                duration="${2}"
+                duration="${value}"
                 shift;shift;;
             *)
-                log "Unrecognized argument ${1}"
+                log "Unrecognized argument ${value}"
                 shift;;
         esac
     done

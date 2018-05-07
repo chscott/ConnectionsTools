@@ -75,7 +75,7 @@ function log() {
 }
 
 # Given a profileKey.metadata file, return the profile type
-function getWasProfileType() {
+function getWASProfileType() {
 
     local profileKeyFile="${1}"
     local profileType=""
@@ -113,10 +113,18 @@ function getWASServerStatus() {
     local profile="${2}"
     local noDisplay="${3}"
 
+    # Get the basename of the profile directory
+    local profileBasename=$(basename "${profile}")
+
+    # If no WAS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
+    if [[ -z "${wasInstallDir}" || ! -d "${wasInstallDir}" ]]; then
+        return
+    fi
+
     # Only print info if noDisplay is not true
     if [[ "${noDisplay}" != "true" ]]; then
-        printf "${left3Column}" "Server: ${server} "
-        printf "${middle3Column}" "Profile: $(basename ${profile})"
+        printf "${left3Column}" "Server: ${server}"
+        printf "${middle3Column}" "Profile: ${profileBasename}"
     fi
 
     # This approach is much faster than using serverStatus.sh and unlikely to yield false positives
@@ -125,19 +133,19 @@ function getWASServerStatus() {
     if [[ ${?} == 0 ]]; then
         # If we found a match, the server is started
         if [[ "${noDisplay}" == "true" ]]; then
-            # Return status via subshell
+            # Return status
             echo "STARTED"
         else
-            # Return status via display
+            # Display status 
             printf "${right3Column}" "${greenText}STARTED${normalText}"
         fi
     else 
         # If we did not find a match, the server is stopped
         if [[ "${noDisplay}" == "true" ]]; then
-            # Return status via subshell
+            # Return status
             echo "STOPPED"
         else
-            # Return status via display
+            # Display status 
             printf "${right3Column}" "${redText}STOPPED${normalText}"
         fi
     fi
@@ -152,7 +160,10 @@ function startWASServer() {
     local server="${1}"
     local profile="${2}"
 
-    printf "${left2Column}" "Starting server ${server} in profile $(basename "${profile}")..."
+    # Get the basename of the profile directory
+    local profileBasename=$(basename "${profile}")
+
+    printf "${left2Column}" "Starting server ${server} in profile ${profileBasename}..."
 
     # Get the result of the startServer.sh command
     local status="$("${profile}/bin/startServer.sh" "${server}")"
@@ -174,7 +185,10 @@ function stopWASServer() {
     local server="${1}"
     local profile="${2}"
 
-    printf "${left2Column}" "Stopping server ${server} in profile $(basename "${profile}")..."
+    # Get the basename of the profile directory
+    local profileBasename=$(basename "${profile}")
+
+    printf "${left2Column}" "Stopping server ${server} in profile ${profileBasename}..."
 
     # Get the result of the stopServer.sh command
     local status="$("${profile}/bin/stopServer.sh" "${server}" -username "${wasAdmin}" -password "${wasAdminPwd}")"
@@ -407,9 +421,9 @@ function startDB2Server() {
 
     printf "${left2Column}" "Starting DB2..."
 
-    result=$(sudo -i -u "${db2InstanceUser}" "db2start")
+    status=$(sudo -i -u "${db2InstanceUser}" "db2start")
 
-    if [[ "${result}" =~ "SQL1063N" || "${result}" =~ "SQL1026N" ]]; then
+    if [[ "${status}" =~ "SQL1063N" || "${status}" =~ "SQL1026N" ]]; then
         printf "${right2Column}" "${greenText}SUCCESS${normalText}" 
     else
         printf "${right2Column}" "${redText}FAILURE${normalText}" 
@@ -428,9 +442,9 @@ function stopDB2Server() {
 
     printf "${left2Column}" "Stopping DB2..."
 
-    result=$(sudo -i -u "${db2InstanceUser}" "db2stop")
+    status=$(sudo -i -u "${db2InstanceUser}" "db2stop")
 
-    if [[ "${result}" =~ "SQL1064N" || "${result}" =~ "SQL1032N" ]]; then
+    if [[ "${status}" =~ "SQL1064N" || "${status}" =~ "SQL1032N" ]]; then
         printf "${right2Column}" "${greenText}SUCCESS${normalText}" 
     else
         printf "${right2Column}" "${redText}FAILURE${normalText}" 
