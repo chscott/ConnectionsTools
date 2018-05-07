@@ -1,6 +1,6 @@
 ### Overview
 
-ConnectionsAdminTools is a set of administrative scripts designed to make life easier for Connections administrators. The 
+ConnectionsTools is a set of administrative scripts designed to make life easier for Connections administrators. The 
 scripts contain both user-friendly wrappers around existing administration tools and new tools that don't already exist in 
 the product.
 
@@ -23,7 +23,7 @@ target component.
 1. From your Linux system, download the file.
 
    ```Bash
-   $ curl -s -L -o master.zip https://github.com/chscott/ConnectionsAdminTools/archive/master.zip
+   $ curl -s -L -o master.zip https://github.com/chscott/ConnectionsTools/archive/master.zip
    ```
    
 2. Unzip the file.
@@ -32,27 +32,27 @@ target component.
    $ unzip -qq master.zip
    ```
    
-3. Update the file ownership and permissions on the ConnectionsAdminTools-master/etc and ConnectionsAdminTools-master/tools 
+3. Update the file ownership and permissions on the ConnectionsTools-master/etc and ConnectionsTools-master/tools 
    directory files. In this example deployment scenario, we want the files owned by root and a group named icadmins, both of 
    which will have full control. Other users will have no access. Your requirements may vary.
    
    ```Bash
-   $ sudo chown root.icadmins ConnectionsAdminTools-master/etc/*
-   $ sudo chmod 770 ConnectionsAdminTools-master/etc/*
-   $ sudo chown -R root.icadmins ConnectionsAdminTools-master/tools/*
-   $ sudo chmod -R 770 ConnectionsAdminTools-master/tools/*
+   $ sudo chown root.icadmins ConnectionsTools-master/etc/*
+   $ sudo chmod 770 ConnectionsTools-master/etc/*
+   $ sudo chown -R root.icadmins ConnectionsTools-master/tools/*
+   $ sudo chmod -R 770 ConnectionsTools-master/tools/*
    ```
    
-4. Copy ConnectionsAdminTools-master/etc/ictools.conf to /etc/ictools.conf.
+4. Copy ConnectionsTools-master/etc/ictools.conf to /etc/ictools.conf.
 
    ```Bash
-   $ sudo cp -p ConnectionsAdminTools-master/etc/ictools.conf /etc/
+   $ sudo cp -p ConnectionsTools-master/etc/ictools.conf /etc/
    ```
    
-5. Copy the ConnectionsAdminTools-master/tools files to a location of your choice. I recommend /usr/local/sbin.
+5. Copy the ConnectionsTools-master/tools files to a location of your choice. I recommend /usr/local/sbin.
 
    ```Bash
-   $ sudo cp -p -R ConnectionsAdminTools-master/tools/* /usr/local/sbin/
+   $ sudo cp -p -R ConnectionsTools-master/tools/* /usr/local/sbin/
    
 6. (Optional but recommended) Add the directory you chose in Step 5 to your path. Note that for sudo, you'll need to add the
    directory to the secure_path variable in /etc/sudoers. For example:
@@ -70,7 +70,7 @@ You are now ready to use the tools.
 The advanced installation involves deploying the tools to one node, as documented in the Basic installation section. Instead 
 of copying the tools to a regular directory, however, you copy them to a directory exported via NFS. Then, on each 
 Connections node, you mount the NFS directory that contains the tools. This approach makes it much easier to upgrade to new
-versions of ConnectionsAdminTools since you only need to upgrade a single node.
+versions of ConnectionsTools since you only need to upgrade a single node.
 
 ### The tools
 
