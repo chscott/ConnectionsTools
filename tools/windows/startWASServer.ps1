@@ -7,8 +7,8 @@ checkForAdmin
 
 # Process the user arguments
 $argsList = New-Object System.Collections.ArrayList(,${args})
-$profile=$null
-$server=$null
+#$profile=$null
+#$server=$null
 while (${argsList}.Count -gt 0) {
 	$key=${argsList}[0]
 	$value=${argsList}[1]
@@ -22,7 +22,7 @@ while (${argsList}.Count -gt 0) {
 
 # Determine the profile type
 $profileKey="${wasProfileRoot}\${profile}\properties\profileKey.metadata"
-$profileType=""
+#$profileType=""
 if (Test-Path -Path "${profileKey}") {
     $profileType=$(getWASProfileType "${profileKey}")
 }

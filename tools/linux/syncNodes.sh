@@ -39,8 +39,8 @@ function onlineSync() {
     printf "${left2Column}" "Synchronizing active nodes..."
 
     # Call wsadmin with the syncNodes.py script to perform online sync
-    nodes=($("${scriptDir}/wsadmin.sh" "${scriptDir}/wsadmin/syncNodes.py" | tail -n +7 | sed '/^\s$/d'))
-
+    "${scriptDir}/wsadmin.sh" "${scriptDir}/wsadmin/syncNodes.py" >/dev/null 2>&1
+ 
     # Report status
     if [[ ${?} == 0 ]]; then
         printf "${right2Column}" "${greenText}SUCCESS${normalText}"

@@ -106,12 +106,13 @@ function getWASServerStatus($server, $profile, $noDisplay) {
 	
 	# This approach is much faster than using serverStatus.bat and unlikely to yield false positives
 	if (Get-WmiObject Win32_Process -Filter "Name='java.exe' AND CommandLine LIKE '%${profileBasename}%'" | 
-		Select-Object CommandLine | 
-		Out-String -Width 4096 | 
-		ForEach-Object { $_.Split(); } | 
-		Where-Object { $_ -ne "" } |
-		Select-Object -Last 1 |
-		Select-String -Pattern "${server}" -Quiet) {
+		ForEach-Object { return $_.CommandLine } | 
+		ForEach-Object { 
+			$_.Split() | 
+			Where-Object { $_ -ne "" } | 
+			Select-Object -Last 1 | 
+			Select-String -Pattern "${server}" -Quiet 
+		}) {
 		# If we found a match, the server is started
 		if ("${noDisplay}" -eq "true") {
 			# Return status
