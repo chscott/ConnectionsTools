@@ -46,6 +46,7 @@ for profile in "${profiles[@]}"; do
             log "No servers were found in the ${profile} profile"
             exit 1
         fi
+
     fi
 
 done

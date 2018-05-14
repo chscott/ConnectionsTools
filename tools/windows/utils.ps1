@@ -199,6 +199,29 @@ function getIHSServerStatus() {
 
 }
 
+# Start IHS server
+function startIHSServer() {
+
+    # If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
+    if (!"${ihsInstallDir}" -Or !(Test-Path "${ihsInstallDir}")) {
+        log "IHS does not appear to be installed on this system. Exiting."
+        exit 0
+    }
+
+    Write-Host -NoNewLine ("{0,-60}" -f "Starting IHS server...")
+
+	# Stop the server
+    $status=$(cmd /c "${ihsInstallDir}\bin\apache.exe" -k "start" '2>&1')
+    
+	# Check to see if server is started
+    if (Get-WmiObject Win32_Process -Filter "Name='httpd.exe'") {
+        Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
+    } else {
+        Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
+    }
+
+}
+
 # Stop IHS server
 function stopIHSServer() {
 
@@ -211,8 +234,8 @@ function stopIHSServer() {
 	Write-Host -NoNewLine ("{0,-60}" -f "Stopping IHS server...")
 
     # Stop the server
-    cmd /c "${ihsInstallDir}\bin\apache.exe" -k "stop" '>$null' '2>&1'
-    
+    $status=$(cmd /c "${ihsInstallDir}\bin\apache.exe" -k "stop" '2>&1')
+	    
     # Wait a few seconds for process termination 
     Start-Sleep -s ${serviceDelaySeconds} 
 
