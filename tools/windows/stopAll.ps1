@@ -2,6 +2,9 @@
 . (Join-Path "${PSScriptRoot}" etc\ictools.ps1)
 . (Join-Path "${PSScriptRoot}" utils.ps1)
 
+# Set global variables
+init
+
 # Make sure we're running as admin
 checkForAdmin
 
@@ -24,3 +27,6 @@ if (Test-Path -Path "${wasProfileRoot}") {
 
 # Stop DB2
 & "${PSScriptRoot}\stopDB2.ps1"
+
+# Reset global variables
+term

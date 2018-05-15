@@ -8,7 +8,7 @@ init
 # Make sure we're running as admin
 checkForAdmin
 
-startDB2Server
+startIHSServer
 
 # Reset global variables
 term

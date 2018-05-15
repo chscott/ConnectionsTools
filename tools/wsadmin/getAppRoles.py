@@ -3,7 +3,7 @@
 
 # Get the application name if one was specified
 try:
-    scope = sys.argv[1]
+    scope = sys.argv[0]
 except (IndexError):
     scope = "ALL_INSTALLED"
 

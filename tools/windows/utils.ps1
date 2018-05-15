@@ -1,12 +1,24 @@
-#$global:ErrorActionPreference = "SilentlyContinue"
-#$global:WarningPreference = "SilentlyContinue"
-$global:ProgressPreference = "SilentlyContinue"
-
 . (Join-Path "${PSScriptRoot}" etc\ictools.ps1)
 #. (Join-Path "${PSScriptRoot}" test\ictools.ps1)
 
+function init() { 
+
+	$global:ErrorActionPreference = "SilentlyContinue"
+	$global:WarningPreference = "SilentlyContinue"
+	$global:ProgressPreference = "SilentlyContinue"
+
+}
+
+function term() { 
+
+	$global:ErrorActionPreference = "Continue"
+	$global:WarningPreference = "Continue"
+	$global:ProgressPreference = "Continue"
+
+}
+
 # Tests to make sure the effective user ID is Administrator
-function checkForAdmin {
+function checkForAdmin() {
 
     $script=$(Split-Path $($MyInvocation.ScriptName) -Leaf)
 
@@ -18,7 +30,7 @@ function checkForAdmin {
 }
 
 # Tests to make sure the WAS Deployment Manager is available on this system
-function checkForDmgr {
+function checkForDmgr() {
 
     $script=$(Split-Path $($MyInvocation.ScriptName) -Leaf)
 
@@ -30,7 +42,7 @@ function checkForDmgr {
 }
 
 # Tests to make sure Connections is installed on this system
-function checkForIC {
+function checkForIC() {
 
 	$script=$(Split-Path $($MyInvocation.ScriptName) -Leaf)
 	
@@ -145,7 +157,7 @@ function startWASServer($server, $profile) {
     Write-Host -NoNewLine ("{0,-60}" -f "Starting server ${server} in profile ${profileBasename}...")
 
     # Get the result of the startServer.bat command
-	$status=$(cmd /c "${profile}\bin\startServer.bat" "${server}" '2>&1')
+	$status=$(& "${profile}\bin\startServer.bat" "${server}" *>&1)
 
     # Check to see if server is started
     if ("${status}" -Like "*ADMU3027E*" -Or "${status}" -Like "*ADMU3000I*") {
@@ -167,7 +179,7 @@ function stopWASServer($server, $profile) {
     Write-Host -NoNewLine ("{0,-60}" -f "Stopping server ${server} in profile ${profileBasename}...")
 
     # Get the result of the startServer.bat command
-	$status=$(cmd /c "${profile}\bin\stopServer.bat" "${server}" -username "${wasAdmin}" -password "${wasAdminPwd}" '2>&1')
+	$status=$(& "${profile}\bin\stopServer.bat" "${server}" -username "${wasAdmin}" -password "${wasAdminPwd}" *>&1)
 	
 	# Check to see if server is stopped
     if ("${status}" -Like "*ADMU0509I*" -Or "${status}" -Like "*ADMU4000I*") {
@@ -211,7 +223,7 @@ function startIHSServer() {
     Write-Host -NoNewLine ("{0,-60}" -f "Starting IHS server...")
 
 	# Stop the server
-    $status=$(cmd /c "${ihsInstallDir}\bin\apache.exe" -k "start" '2>&1')
+    $status=$(& "${ihsInstallDir}\bin\apache.exe" -k "start" *>${null})
     
 	# Check to see if server is started
     if (Get-WmiObject Win32_Process -Filter "Name='httpd.exe'") {
@@ -234,7 +246,7 @@ function stopIHSServer() {
 	Write-Host -NoNewLine ("{0,-60}" -f "Stopping IHS server...")
 
     # Stop the server
-    $status=$(cmd /c "${ihsInstallDir}\bin\apache.exe" -k "stop" '2>&1')
+    $status=$(& "${ihsInstallDir}\bin\apache.exe" -k "stop" *>${null})
 	    
     # Wait a few seconds for process termination 
     Start-Sleep -s ${serviceDelaySeconds} 
@@ -285,7 +297,7 @@ function startDB2Server() {
 
 	Write-Host -NoNewLine ("{0,-60}" -f "Starting DB2...")
 
-	$status=$(cmd /c "${db2InstallDir}\bin\db2start.exe" '2>&1')
+	$status=$(& "${db2InstallDir}\bin\db2start.exe" *>&1)
 
     if ("${status}" -Like "*SQL1063N*" -Or "${status}" -Like "*SQL1026N*") {
         Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
@@ -306,7 +318,7 @@ function stopDB2Server() {
 
     Write-Host -NoNewLine ("{0,-60}" -f "Stopping DB2...")
 
-    $status=$(cmd /c "${db2InstallDir}\bin\db2stop.exe" '2>&1')
+    $status=$(& "${db2InstallDir}\bin\db2stop.exe" *>&1)
 	
 	if ("${status}" -Like "*SQL1064N*" -Or "${status}" -Like "*SQL1032N*") {
         Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")

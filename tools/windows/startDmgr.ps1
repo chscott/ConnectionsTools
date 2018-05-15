@@ -2,6 +2,9 @@
 . (Join-Path "${PSScriptRoot}" etc\ictools.ps1)
 . (Join-Path "${PSScriptRoot}" utils.ps1)
 
+# Set global variables
+init
+
 # Make sure we're running as admin
 checkForAdmin
 
@@ -39,3 +42,6 @@ ForEach ($profile In ${profiles}) {
     }
 
 }
+
+# Reset global variables
+term

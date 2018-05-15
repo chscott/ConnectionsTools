@@ -2,13 +2,14 @@
 . (Join-Path "${PSScriptRoot}" etc\ictools.ps1)
 . (Join-Path "${PSScriptRoot}" utils.ps1)
 
+# Set global variables
+init
+
 # Make sure we're running as admin
 checkForAdmin
 
 # Process the user arguments
 $argsList = New-Object System.Collections.ArrayList(,${args})
-#$profile=$null
-#$server=$null
 while (${argsList}.Count -gt 0) {
 	$key=${argsList}[0]
 	$value=${argsList}[1]
@@ -22,7 +23,6 @@ while (${argsList}.Count -gt 0) {
 
 # Determine the profile type
 $profileKey="${wasProfileRoot}\${profile}\properties\profileKey.metadata"
-#$profileType=""
 if (Test-Path -Path "${profileKey}") {
     $profileType=$(getWASProfileType "${profileKey}")
 }
@@ -41,3 +41,6 @@ if ("${profileType}" -eq "DEPLOYMENT_MANAGER") {
         startWASServer "${server}" "${wasProfileRoot}\${profile}"
     }
 }
+
+# Reset global variables
+term

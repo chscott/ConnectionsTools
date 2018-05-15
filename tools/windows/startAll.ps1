@@ -2,6 +2,9 @@
 . (Join-Path "${PSScriptRoot}" etc\ictools.ps1)
 . (Join-Path "${PSScriptRoot}" utils.ps1)
 
+# Set global variables
+init
+
 # Make sure we're running as admin
 checkForAdmin
 
@@ -21,3 +24,6 @@ if (Test-Path -Path "${wasProfileRoot}") {
 
 # Start WAS nodeagents and application servers
 & "${PSScriptRoot}\startAppServers.ps1"
+
+# Reset global variables
+term
