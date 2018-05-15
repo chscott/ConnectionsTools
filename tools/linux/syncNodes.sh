@@ -10,15 +10,15 @@ function init() {
     # Make sure we're running as root
     checkForRoot
 
-    # Variables
-    local mode="${1}"
-
     # See if the Deployment Manager is available
     status=$(isDmgrAvailable)
     if [[ ${status} != 0 ]]; then
         log "The Deployment Manager must be running to sync nodes" 
         exit 1
     fi
+
+    # Variables
+    local mode="${1}"
 
     # See which mode was requested
     if [[ "${mode}" == "--offline" ]]; then

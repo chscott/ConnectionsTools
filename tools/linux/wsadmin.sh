@@ -25,7 +25,7 @@ function init() {
         script="$(cd "$(dirname "${1}")" && pwd)/$(basename "${1}")"
         # Clear $1 so the remaining args can be passed to wsadmin
         shift;
-        args="${@}"
+        args=("${@}")
     elif [[ ! -z "${1}" && ! -f "${1}" ]]; then
         log "${1}: No such file or directory"
         exit 1
@@ -41,7 +41,10 @@ init "${@}"
 if [[ -z "${script}" ]]; then
     # No script provided, so just start a wsadmin shell    
     "${wasDmgrProfile}/bin/wsadmin.sh" -lang "jython" -user "${wasAdmin}" -password "${wasAdminPwd}" 
+elif [[ -z "${args}" ]]; then
+    # No argments provided, so just run wsadmin with the script as input
+    "${wasDmgrProfile}/bin/wsadmin.sh" -lang "jython" -user "${wasAdmin}" -password "${wasAdminPwd}" -f "${script}"
 else
-    # Run wsadmin with the script as input
-    "${wasDmgrProfile}/bin/wsadmin.sh" -lang "jython" -user "${wasAdmin}" -password "${wasAdminPwd}" -f "${script}" "${args}"
+    # Run wsadmin with the script as input and pass the additional arguments
+    "${wasDmgrProfile}/bin/wsadmin.sh" -lang "jython" -user "${wasAdmin}" -password "${wasAdminPwd}" -f "${script}" "${args[@]}"
 fi
