@@ -1,5 +1,5 @@
-. (Join-Path "${PSScriptRoot}" etc\ictools.ps1)
-#. (Join-Path "${PSScriptRoot}" test\ictools.ps1)
+# Source the prereqs
+. C:\ProgramData\ConnectionsTools\ictools.ps1
 
 function init() { 
 
@@ -55,7 +55,7 @@ function checkForIC() {
 }
 
 # Tests to make sure TDI is installed on this system
-function checkForTDI {
+function checkForTDI() {
 
     $script=$(Split-Path $($MyInvocation.ScriptName) -Leaf)
 
@@ -90,7 +90,7 @@ function getWASProfileType($profileKeyFile) {
 }
 
 # Check to see if Deployment Manager is available
-function isDmgrAvailable {
+function isDmgrAvailable() {
 
     $status=$((Test-NetConnection -ComputerName "${wasDmgrHost}" -Port ${wasDmgrSoapPort}).TcpTestSucceeded)
 	return "${status}"

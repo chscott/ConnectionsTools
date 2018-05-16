@@ -1,5 +1,5 @@
 # Source prereqs
-. (Join-Path "${PSScriptRoot}" etc\ictools.ps1)
+. C:\ProgramData\ConnectionsTools\ictools.ps1
 . (Join-Path "${PSScriptRoot}" utils.ps1)
 
 # Set global variables
@@ -18,15 +18,15 @@ Push-Location -Path "${tdiSolutionDir}" -StackName ConnectionsTools
 
 & "${tdiSolutionDir}\sync_all_dns.bat" *>${null}
 
-# Change back to the previous directory
-Pop-Location -StackName ConnectionsTools
-
 # Report status
 if (${?}) {
     Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
 } else {
     Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
 }
+
+# Change back to the previous directory
+Pop-Location -StackName ConnectionsTools
 
 # Reset global variables
 term

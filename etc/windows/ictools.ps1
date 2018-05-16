@@ -16,10 +16,10 @@ $icInstallDir="C:\IBM\Connections"
 $icFixesDir="${icInstallDir}\updateInstaller\fixes"
 
 # TDI
-$tdiSolutionDir="C:\IBM\TDI\tdisol"
+$tdiSolutionDir="C:\temp\IBM\TDI\tdisol"
 
 # DB2
-$db2InstallDir="C:\IBM\DB2"
+$db2InstallDir="C:\Program Files\IBM\sdsV6.3.1db2"
 $db2InstanceUser="db2inst1"
 $db2ServiceName="DB2DS631-0"
 
@@ -27,3 +27,8 @@ $db2ServiceName="DB2DS631-0"
 $separator="================================================================================"
 # Some services require a short delay during start/stop operations
 $serviceDelaySeconds=5
+# Add any apps here for which file differences will not be reported by compareApps.sh.
+# This is primarily for Help.ear, which is always different and insignificant.
+#excludeCompareApps=(
+#    "Help.ear" 
+#)

@@ -1,5 +1,5 @@
 # Source prereqs
-. (Join-Path "${PSScriptRoot}" etc\ictools.ps1)
+. C:\ProgramData\ConnectionsTools\ictools.ps1
 . (Join-Path "${PSScriptRoot}" utils.ps1)
 
 # Set global variables
