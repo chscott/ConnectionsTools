@@ -3,17 +3,17 @@
 
 function init() { 
 
-	$global:ErrorActionPreference = "SilentlyContinue"
-	$global:WarningPreference = "SilentlyContinue"
-	$global:ProgressPreference = "SilentlyContinue"
+	$script:ErrorActionPreference = "SilentlyContinue"
+	$script:WarningPreference = "SilentlyContinue"
+	$script:ProgressPreference = "SilentlyContinue"
 
 }
 
 function term() { 
 
-	$global:ErrorActionPreference = "Continue"
-	$global:WarningPreference = "Continue"
-	$global:ProgressPreference = "Continue"
+	$script:ErrorActionPreference = "Continue"
+	$script:WarningPreference = "Continue"
+	$script:ProgressPreference = "Continue"
 
 }
 

@@ -10,10 +10,6 @@ function init() {
     # Make sure we're running as root
     checkForRoot
 
-    # Build an array of WAS profiles
-    cd "${wasProfileRoot}"
-    profiles=($(ls -d *))
-
 }
 
 init "${@}"

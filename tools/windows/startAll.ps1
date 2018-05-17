@@ -8,11 +8,6 @@ init
 # Make sure we're running as admin
 checkForAdmin
 
-# Build an array of WAS profiles
-if (Test-Path -Path "${wasProfileRoot}") {
-	$profiles=$(Get-ChildItem -Directory "${wasProfileRoot}")
-}
-
 # Start DB2
 & "${PSScriptRoot}\startDB2.ps1"
 

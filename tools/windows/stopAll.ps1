@@ -8,11 +8,6 @@ init
 # Make sure we're running as admin
 checkForAdmin
 
-# Build an array of WAS profiles
-if (Test-Path -Path "${wasProfileRoot}") {
-	$profiles=$(Get-ChildItem -Directory "${wasProfileRoot}")
-}
-
 # Stop WAS servers
 & "${PSScriptRoot}\stopAppServers.ps1"
 

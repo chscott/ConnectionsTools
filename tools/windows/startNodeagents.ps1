@@ -13,7 +13,7 @@ if (Test-Path -Path "${wasProfileRoot}") {
 	$profiles=$(Get-ChildItem -Directory "${wasProfileRoot}")
 }
 
-# Start WAS server nodeagents
+# For each profile...
 ForEach ($profile In ${profiles}) {
 
 	# Determine the profile type
@@ -22,24 +22,39 @@ ForEach ($profile In ${profiles}) {
         $profileType=$(getWASProfileType "${profileKey}")
     }
 
+	# Only need to continue if the profile type is BASE
     if ("${profileType}" -eq "BASE") {
+	
+		# Build an array of servers known to this cell
+		$cellServers=$(
+			Get-ChildItem -Path "${wasProfileRoot}\${profile}\config\cells\${wasCellName}\nodes" -Recurse -Include serverindex.xml 2>${null} | 
+			Select-String "serverName" |
+			ForEach-Object { 
+				$_.ToString().Split() | 
+				Select-String serverName | 
+				ForEach { 
+					$_.Line.Split('=').Replace('"','') | 
+					Select-String -NotMatch serverName
+				}
+			}
+		)
+		$cellServers=$(${cellServers} | Sort-Object -Unique)
 
         # If the profile directory has no servers directory, skip it
 		if (Test-Path -Path "${wasProfileRoot}\${profile}\servers") {
-			# Get an array of servers (only the nodeagent!)
-            $servers=$(Get-ChildItem -Directory "${wasProfileRoot}\${profile}\servers" | Select-String -Pattern "nodeagent") 
-            # Start the servers
-            ForEach ($server in ${servers}) {
-                startWASServer "${server}" "${wasProfileRoot}\${profile}"
-            }
-        } else {
-            log "No servers were found in the ${profile} profile"
-            exit 1
+			# Get an array of servers (only named "nodeagent")
+            $profileServers=$(Get-ChildItem -Directory "${wasProfileRoot}\${profile}\servers" | Select-String -Pattern "nodeagent") 
+			# Loop through the profile servers
+            ForEach ($profileServer in ${profileServers}) {
+				# Verify that this server exists in the cell
+				ForEach ($cellServer in ${cellServers}) {
+					if ("${cellServer}" -eq "${profileServer}") {
+						startWASServer "${profileServer}" "${wasProfileRoot}\${profile}"
+					}
+				}
+			}
         }
 		
     }
 
 }
-
-# Reset global variables
-term
