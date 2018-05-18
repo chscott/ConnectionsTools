@@ -13,38 +13,37 @@ function init() {
     # Make sure this is a Deployment Manager node
     checkForDmgr
 
-    # Build an array of WAS profiles
-    cd "${wasProfileRoot}"
-    profiles=($(ls -d *))
-
 }
 
 init "${@}"
 
-# Find the Deployment Manager profile
+# Build an array of WAS profiles
+cd "${wasProfileRoot}" 2>/dev/null
+profiles=($(ls -d * 2>/dev/null))
+
+# For each profile...
 for profile in "${profiles[@]}"; do
 
-    # Determine the profile type
-    profileKey="${wasProfileRoot}/${profile}/properties/profileKey.metadata"
-    if [[ -f "${profileKey}" ]]; then
-        profileType=$(getWASProfileType "${profileKey}")
-    fi
+    # Only need to continue if the profile type is DEPLOYMENT_MANAGER
+    if [[ "$(isWASDmgrProfile "${profile}")" == "true" ]]; then
 
-    if [[ "${profileType}" == "DEPLOYMENT_MANAGER" ]]; then
+        # Test if the servers directory exists and contains at least one subdirectory 
+        cd "${wasProfileRoot}/${profile}/servers" 2>/dev/null && ls -d * >/dev/null 2>&1
 
-        # Change to the servers directory so we can get an array of servers from the subdirectories
-        cd "${wasProfileRoot}/${profile}/servers" >/dev/null 2>&1
-
-        # If the profile directory has no servers directory, skip it
-        if [[ ${?} == 0 ]]; then
-            servers=($(ls -d *)) 
-            # Start the server (should only be one for Deployment Manager)
-            for server in "${servers[@]}"; do
-                startWASServer "${server}" "${wasProfileRoot}/${profile}"
-            done
+        # If there is no servers directory or there are no subdirectories, skip this profile 
+        if [[ ${?} != 0 ]]; then
+            continue
         else
-            log "No servers were found in the ${profile} profile"
-            exit 1
+            # Get an array of servers
+            servers=($(ls -d * 2>/dev/null)) 
+            # For each server (should only be one)...
+            for server in "${servers[@]}"; do
+                # Verify that this server exists in the cell
+                if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
+                    # The server is part of the cell, so go ahead and start it
+                    startWASServer "${server}" "${wasProfileRoot}/${profile}"
+                fi
+            done
         fi
 
     fi

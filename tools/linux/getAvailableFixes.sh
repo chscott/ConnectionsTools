@@ -23,7 +23,7 @@ function init() {
     . "${wasDmgrProfile}/bin/setupCmdLine.sh"
 
     # Must change to the updateInstall directory or WAS_HOME will be reset
-    cd "${icInstallDir}/updateInstaller"
+    cd "${icInstallDir}/updateInstaller" 2>/dev/null
 
     log "Getting a list of Connections fixes available to install in ${icFixesDir}..."
 

@@ -90,6 +90,73 @@ function getWASProfileType() {
 
 }
 
+# Determine if a given profile is of type DEPLOYMENT_MANAGER
+function isWASDmgrProfile() {
+
+    local profile="${1}"
+
+    # Determine the profile type
+    local profileKey="${wasProfileRoot}/${profile}/properties/profileKey.metadata"
+    if [[ -f "${profileKey}" ]]; then
+        profileType=$(getWASProfileType "${profileKey}")
+    fi
+
+    if [[ "${profileType}" == "DEPLOYMENT_MANAGER" ]]; then
+        echo "true"
+    else
+        echo "false"
+    fi
+
+}
+
+# Determine if a given profile is of type BASE
+function isWASBaseProfile() {
+
+    local profile="${1}"
+
+    # Determine the profile type
+    local profileKey="${wasProfileRoot}/${profile}/properties/profileKey.metadata"
+    if [[ -f "${profileKey}" ]]; then
+        profileType=$(getWASProfileType "${profileKey}")
+    fi
+
+    if [[ "${profileType}" == "BASE" ]]; then
+        echo "true"
+    else
+        echo "false"
+    fi
+
+}
+
+# Determine if a given server is part of the WAS cell
+function isServerInWASCell() {
+
+        local server="${1}"
+        local profile="${2}"
+        local isInCell="false"
+
+        # Build an array of servers known to this cell
+        local cellServers=($( \
+            find "${wasProfileRoot}/${profile}/config/cells/${wasCellName}/nodes" -name "serverindex.xml" -print 2>/dev/null | \
+            xargs grep "serverName" | \
+            awk -F 'serverName=' '{print $2}' | \
+            awk '{print $1}' | \
+            tr -d '"' | \
+            sort | \
+            uniq \
+        )) 
+
+        # Verify that the server exists in the cell
+        for cellServer in "${cellServers[@]}"; do
+            if [[ "${cellServer}" == "${server}" ]]; then
+                isInCell="true"
+            fi
+        done
+
+        echo "${isInCell}"
+
+}
+
 # Check to see if Deployment Manager is available
 function isDmgrAvailable() {
 
@@ -318,7 +385,7 @@ function startSolrServer() {
         exit 1
     fi
 
-    cd "${solrInstallDir}/node1"
+    cd "${solrInstallDir}/node1" 2>/dev/null
 
     # Start Solr
     nohup "${java}" \
@@ -446,6 +513,8 @@ function stopDB2Server() {
 
     if [[ "${status}" =~ "SQL1064N" || "${status}" =~ "SQL1032N" ]]; then
         printf "${right2Column}" "${greenText}SUCCESS${normalText}" 
+    elif [[ "${status}" =~ "SQL1025N" ]]; then
+        printf "${right2Column}" "${redText}FAILURE${normalText} (active connections)"
     else
         printf "${right2Column}" "${redText}FAILURE${normalText}" 
     fi

@@ -36,7 +36,7 @@ function init() {
     fi
 
     # Must change to the updateInstall directory or WAS_HOME will be reset
-    cd "${icInstallDir}/updateInstaller"
+    cd "${icInstallDir}/updateInstaller" 2>/dev/null
 
 }
 

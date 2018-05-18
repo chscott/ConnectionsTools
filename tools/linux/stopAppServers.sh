@@ -10,35 +10,36 @@ function init() {
     # Make sure we're running as root
     checkForRoot
 
-    # Build an array of WAS profiles
-    cd "${wasProfileRoot}"
-    profiles=($(ls -d *))
-
 }
 
 init "${@}"
 
-# Stop WAS servers
+# Build an array of WAS profiles
+cd "${wasProfileRoot}" 2>/dev/null
+profiles=($(ls -d * 2>/dev/null))
+
+# For each profile...
 for profile in "${profiles[@]}"; do
 
-    # Determine the profile type
-    profileKey="${wasProfileRoot}/${profile}/properties/profileKey.metadata"
-    if [[ -f "${profileKey}" ]]; then
-        profileType=$(getWASProfileType "${profileKey}")
-    fi
+    # Only need to continue if the profile type is BASE
+    if [[ "$(isWASBaseProfile "${profile}")" == "true" ]]; then
 
-    if [[ "${profileType}" == "BASE" ]]; then
+        # Test if the servers directory exists and contains at least one subdirectory 
+        cd "${wasProfileRoot}/${profile}/servers" 2>/dev/null && ls -d * >/dev/null 2>&1
 
-        # Change to the servers directory so we can get an array of servers from the subdirectories
-        cd "${wasProfileRoot}/${profile}/servers" >/dev/null 2>&1
-
-        # If there is no servers directory, skip it 
-        if [[ ${?} == 0 ]]; then
-            # Get an array of servers (omit the nodeagent!)
-            servers=($(ls -d * | grep -v "nodeagent")) 
-            # Stop the servers
+        # If there is no servers directory or there are no subdirectories, skip this profile 
+        if [[ ${?} != 0 ]]; then
+            continue
+        else
+            # Get an array of servers (not named "nodeagent")
+            servers=($(ls -d * 2>/dev/null | grep -v "nodeagent")) 
+            # For each server...
             for server in "${servers[@]}"; do
-                stopWASServer "${server}" "${wasProfileRoot}/${profile}"
+                # Verify that this server exists in the cell
+                if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
+                    # The server is part of the cell, so go ahead and stop it 
+                    stopWASServer "${server}" "${wasProfileRoot}/${profile}"
+                fi
             done
         fi
 

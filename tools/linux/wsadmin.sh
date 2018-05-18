@@ -22,7 +22,7 @@ function init() {
 
     # Get the full path of the provided file (needed since we cd to the Deployment Manager bin directory later)
     if [[ ! -z "${1}" && -f "${1}" ]]; then
-        script="$(cd "$(dirname "${1}")" && pwd)/$(basename "${1}")"
+        script="$(cd "$(dirname "${1}")" 2>/dev/null && pwd)/$(basename "${1}")"
         # Clear $1 so the remaining args can be passed to wsadmin
         shift;
         args=("${@}")
@@ -32,7 +32,7 @@ function init() {
     fi
 
     # Change directory to the Deployment Manager bin directory
-    cd "${wasDmgrProfile}/bin"
+    cd "${wasDmgrProfile}/bin" 2>/dev/null
 
 }
 

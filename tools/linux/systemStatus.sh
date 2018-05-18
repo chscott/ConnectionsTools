@@ -10,12 +10,6 @@ function init() {
     # Make sure we're running as root
     checkForRoot
     
-    # Build an array of WAS profiles
-    if [[ -d "${wasProfileRoot}" ]]; then
-        cd "${wasProfileRoot}"
-        profiles=($(ls -d *))
-    fi
-
 }
 
 init "${@}" 
@@ -30,17 +24,31 @@ getIHSServerStatus
 getSolrServerStatus
 
 # Check status for WAS servers
+# Build an array of WAS profiles
+if [[ -d "${wasProfileRoot}" ]]; then
+    cd "${wasProfileRoot}" 2>/dev/null
+    profiles=($(ls -d * 2>/dev/null))
+fi
+
+# For each profile...
 for profile in "${profiles[@]}"; do
 
-    # Get an array of servers
-    cd "${wasProfileRoot}/${profile}/servers" >/dev/null 2>&1
+    # Test if the servers directory exists and contains at least one subdirectory 
+    cd "${wasProfileRoot}/${profile}/servers" 2>/dev/null && ls -d * >/dev/null 2>&1
 
-    # If the profile directory has no servers directory, skip it
-    if [[ ${?} == 0 ]]; then
-        servers=($(ls -d *)) 
-        # Get the server status
+    # If there is no servers directory or there are no subdirectories, skip this profile 
+    if [[ ${?} != 0 ]]; then
+        continue
+    else
+        # Get an array of servers
+        servers=($(ls -d * 2>/dev/null)) 
+        # For each server
         for server in "${servers[@]}"; do
-            getWASServerStatus "${server}" "${wasProfileRoot}/${profile}"
+            # Verify that this server exists in the cell
+            if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
+                # The server is part of the cell, so go ahead and check its status
+                getWASServerStatus "${server}" "${wasProfileRoot}/${profile}"
+            fi
         done
     fi
 

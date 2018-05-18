@@ -15,48 +15,31 @@ function init() {
 init "${@}"
 
 # Build an array of WAS profiles
-cd "${wasProfileRoot}"
-profiles=($(ls -d *))
+cd "${wasProfileRoot}" 2>/dev/null
+profiles=($(ls -d * 2>/dev/null))
 
 # For each profile...
 for profile in "${profiles[@]}"; do
 
-    # Determine the profile type
-    profileKey="${wasProfileRoot}/${profile}/properties/profileKey.metadata"
-    if [[ -f "${profileKey}" ]]; then
-        profileType=$(getWASProfileType "${profileKey}")
-    fi
-
     # Only need to continue if the profile type is BASE
-    if [[ "${profileType}" == "BASE" ]]; then
+    if [[ "$(isWASBaseProfile "${profile}")" == "true" ]]; then
 
-        # Build an array of servers known to this cell
-        cellServers=($( \
-            find "${wasProfileRoot}/${profile}/config/cells/${wasCellName}/nodes" -name "serverindex.xml" -print 2>/dev/null | \
-            xargs grep "serverName" | \
-            awk -F 'serverName=' '{print $2}' | \
-            awk '{print $1}' | \
-            tr -d '"' | \
-            sort | \
-            uniq \
-        )) 
+        # Test if the servers directory exists and contains at least one subdirectory 
+        cd "${wasProfileRoot}/${profile}/servers" 2>/dev/null && ls -d * >/dev/null 2>&1
 
-        # Change to the servers directory so we can get an array of servers that exist in this profile
-        cd "${wasProfileRoot}/${profile}/servers" 2>/dev/null
-
-        # If there is no servers directory, skip it 
-        if [[ ${?} == 0 ]]; then
+        # If there is no servers directory or there are no subdirectories, skip this profile 
+        if [[ ${?} != 0 ]]; then
+            continue
+        else
             # Get an array of servers (only named "nodeagent")
-            profileServers=($(ls -d * | grep "nodeagent")) 
-            # Loop through the profile servers
-            for profileServer in "${profileServers[@]}"; do
+            servers=($(ls -d * 2>/dev/null | grep "nodeagent")) 
+            # For each server...
+            for server in "${servers[@]}"; do
                 # Verify that this server exists in the cell
-                for cellServer in "${cellServers[@]}"; do
-                    if [[ "${cellServer}" == "${profileServer}" ]]; then
-                        # We have a match, so go ahead and stop it
-                        stopWASServer "${profileServer}" "${wasProfileRoot}/${profile}"
-                    fi
-                done
+                if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
+                    # The server is part of the cell, so go ahead and stop it
+                    stopWASServer "${server}" "${wasProfileRoot}/${profile}"
+                fi
             done
         fi
 
