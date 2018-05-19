@@ -29,14 +29,12 @@ for profile in "${profiles[@]}"; do
               "$(directoryHasSubDirs "${wasProfileRoot}/${profile}/servers")" == "false" ]]; then 
             continue
         else
-            # Get an array of servers (only named "nodeagent")
-            cd "${wasProfileRoot}/${profile}/servers" && servers=($(ls -d * | grep "nodeagent")) 
-            for server in "${servers[@]}"; do
-                if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
-                    # The server is part of the cell, so go ahead and start it
-                    startWASServer "${server}" "${wasProfileRoot}/${profile}"
-                fi 
-            done
+            # Find the nodeagent 
+            cd "${wasProfileRoot}/${profile}/servers" && server=$(ls -d * | grep --max-count 1 "nodeagent")
+            if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
+                # The server is part of the cell, so go ahead and start it
+                startWASServer "${server}" "${wasProfileRoot}/${profile}"
+            fi 
         fi
     fi
 done

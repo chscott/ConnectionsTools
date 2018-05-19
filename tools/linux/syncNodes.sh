@@ -54,34 +54,24 @@ function offlineSync() {
                   "$(directoryHasSubDirs "${wasProfileRoot}/${profile}/servers")" == "false" ]]; then 
                 continue
             else
-                # Get an array of servers
-                cd "${wasProfileRoot}/${profile}/servers" && servers=($(ls -d * | grep "nodeagent")) 
-                # Make sure all servers are 1) part of the WAS cell and 2) stopped
-                local areAllServersInCell="true"
-                local areAllServersStopped="true"
-                for server in "${servers[@]}"; do
-                    if [[ "$(isServerInWASCell "${server}" "${profile}")" == "false" ]]; then
-                        areAllServersInCell="false"
-                    fi
-                    if [[ "$(getWASServerStatus "${server}" "${wasProfileRoot}/${profile}" "true")" != "STOPPED" ]]; then
-                        areAllServersStopped="false"
-                    fi
-                done
-                # Silently ignore any servers that are not part of this cell
-                if [[ "${areAllServersInCell}" == "true" ]]; then
+                # Find the nodeagent
+                cd "${wasProfileRoot}/${profile}/servers" && server=($(ls -d * | grep --max-count 1 "nodeagent")) 
+                # Make sure the nodeagent is part of the cell
+                if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
                     printf "${left2Column}" "Synchronizing servers in ${profile} profile..."
-                fi
-                # Try the sync if both checks pass
-                if [[ "${areAllServersInCell}" == "true" && "${areAllServersStopped}" == "true" ]]; then
-                    "${wasProfileRoot}/${profile}/bin/syncNode.sh" "${wasDmgrHost}" "-user" "${wasAdmin}" "-password" "${wasAdminPwd}" >/dev/null 2>&1
-                    # Log status
-                    if [[ ${?} == 0 ]]; then
-                        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+                    # Make sure the nodeagent is stopped
+                    if [[ "$(getWASServerStatus "${server}" "${wasProfileRoot}/${profile}" "true")" == "STOPPED" ]]; then
+                        # Do the sync
+                        "${wasProfileRoot}/${profile}/bin/syncNode.sh" "${wasDmgrHost}" "-user" "${wasAdmin}" "-password" "${wasAdminPwd}" >/dev/null 2>&1
+                        # Log status
+                        if [[ ${?} == 0 ]]; then
+                            printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+                        else
+                            printf "${right2Column}" "${redText}FAILURE${normalText}"
+                        fi
                     else
-                        printf "${right2Column}" "${redText}FAILURE${normalText}"
+                        printf "${right2Column}" "${redText}FAILURE${normalText} (nodeagent is still running)"
                     fi
-                elif [[ "${areAllServersInCell}" == "true" && "${areAllServersStopped}" == "false" ]]; then
-                   printf "${right2Column}" "${redText}FAILURE${normalText} (At least one server is still running)"
                 fi
             fi
         fi

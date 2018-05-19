@@ -49,36 +49,26 @@ function offlineSync($profiles) {
 				$(directoryHasSubDirs "${wasProfileRoot}\${profile}\servers") -eq "false") {
 				continue
 			} else {
-				# Get an array of servers (only named "nodeagent")
-				$servers=$(Get-ChildItem -Directory "${wasProfileRoot}\${profile}\servers" | Select-String -Pattern "nodeagent") 
-				# Make sure all servers are 1) part of this cell and 2) stopped
-				$areAllServersInCell="true"
-                $areAllServersStopped="true"
-                ForEach ($server in ${servers}) {
-					if ($(isServerInWASCell "${server}" "${profile}") -eq "false") {
-						$areAllServersInCell="false"
-					}
-                    if ($(getWASServerStatus "${server}" "${wasProfileRoot}\${profile}" "true") -ne "STOPPED") {
-                        $areAllServersStopped="false"
-                    }
-                }
-				# Silently ignore any servers that are not part of this cell
-				if ("${areAllServersInCell}" -eq "true") {
+				# Find the nodeagent
+				$server=$(Get-ChildItem -Directory "${wasProfileRoot}\${profile}\servers" | Select-String -Pattern "nodeagent" | Select-Object -First 1) 
+				# Make sure the nodeagent is part of the cell
+				if ($(isServerInWASCell "${server}" "${profile}") -eq "true") {
 					Write-Host -NoNewLine ("{0,-60}" -f "Synchronizing servers in ${profile} profile...")
+					# Make sure the nodeagent is stopped
+					if ($(getWASServerStatus "${server}" "${wasProfileRoot}\${profile}" "true") -eq "STOPPED") {
+						# Do the sync
+						& "${wasProfileRoot}\${profile}\bin\syncNode.bat" "${wasDmgrHost}" "-user" "${wasAdmin}" "-password" "${wasAdminPwd}" *>${null}
+						# Log status
+						if (${?}) {
+							Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
+						} else {
+							Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
+						}
+					} else {
+						Write-Host -NoNewLine -ForegroundColor Red ("{0,-7}" -f "FAILURE")
+						Write-Host " (nodeagent is still running)"
+					}
 				}
-				# Try the sync if all servers are stopped
-                if ("${areAllServersStopped}" -eq "true") {
-                    & "${wasProfileRoot}\${profile}\bin\syncNode.bat" "${wasDmgrHost}" "-user" "${wasAdmin}" "-password" "${wasAdminPwd}" *>${null}
-                    # Log status
-                    if (${?}) {
-                        Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
-                    } else {
-                        Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
-                    }
-                } else {
-					Write-Host -NoNewLine -ForegroundColor Red ("{0,-7}" -f "FAILURE")
-					Write-Host " (At least one server is still running)"
-                }
 			}
 		}                    
 	}

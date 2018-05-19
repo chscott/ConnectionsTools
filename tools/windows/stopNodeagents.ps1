@@ -22,14 +22,12 @@ foreach ($profile in ${profiles}) {
 			$(directoryHasSubDirs "${wasProfileRoot}\${profile}\servers") -eq "false") {
 			continue
 		} else {
-			# Get an array of servers (only named "nodeagent")
-            $servers=$(Get-ChildItem -Directory "${wasProfileRoot}\${profile}\servers" | Select-String -Pattern "nodeagent") 
-            foreach ($server in ${servers}) {
-				if ($(isServerInWASCell "${server}" "${profile}") -eq "true") {
-					# The server is part of the cell, so go ahead and stop it
-					stopWASServer "${server}" "${wasProfileRoot}\${profile}"
-				}
-            }
+			# Find the nodeagent
+            $server=$(Get-ChildItem -Directory "${wasProfileRoot}\${profile}\servers" | Select-String -Pattern "nodeagent" | Select-Object -First 1) 
+			if ($(isServerInWASCell "${server}" "${profile}") -eq "true") {
+				# The server is part of the cell, so go ahead and stop it
+				stopWASServer "${server}" "${wasProfileRoot}\${profile}"
+			}
 		}	
     }
 }
