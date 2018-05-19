@@ -18,34 +18,29 @@ function init() {
 init "${@}"
 
 # Build an array of WAS profiles
-cd "${wasProfileRoot}" 2>/dev/null
-profiles=($(ls -d * 2>/dev/null))
+if [[ "$(directoryExists "${wasProfileRoot}")" == "true" && "$(directoryHasSubDirs "${wasProfileRoot}")" == "true" ]]; then
+    cd "${wasProfileRoot}" && profiles=($(ls -d *))
+else
+    log "Error: wasProfileRoot must be set to a valid directory in ictools.conf"
+fi
 
-# For each profile...
 for profile in "${profiles[@]}"; do
 
     # Only need to continue if the profile type is DEPLOYMENT_MANAGER
     if [[ "$(isWASDmgrProfile "${profile}")" == "true" ]]; then
-
-        # Test if the servers directory exists and contains at least one subdirectory 
-        cd "${wasProfileRoot}/${profile}/servers" 2>/dev/null && ls -d * >/dev/null 2>&1
-
         # If there is no servers directory or there are no subdirectories, skip this profile 
-        if [[ ${?} != 0 ]]; then
+        if [[ "$(directoryExists "${wasProfileRoot}/${profile}/servers")" == "false" ||
+              "$(directoryHasSubDirs "${wasProfileRoot}/${profile}/servers")" == "false" ]]; then 
             continue
         else
             # Get an array of servers
-            servers=($(ls -d * 2>/dev/null)) 
-            # For each server (should only be one)...
+            cd "${wasProfileRoot}/${profile}/servers" && servers=($(ls -d *)) 
             for server in "${servers[@]}"; do
-                # Verify that this server exists in the cell
                 if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
                     # The server is part of the cell, so go ahead and start it
                     startWASServer "${server}" "${wasProfileRoot}/${profile}"
                 fi
             done
         fi
-
     fi
-
 done

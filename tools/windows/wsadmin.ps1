@@ -2,7 +2,6 @@
 . C:\ProgramData\ConnectionsTools\ictools.ps1
 . (Join-Path "${PSScriptRoot}" utils.ps1)
 
-# Set global variables
 init
 
 # Make sure we're running as admin
@@ -45,6 +44,3 @@ if (!"${script}") {
 
 # Return to the original directory
 Pop-Location -StackName ConnectionsTools
-
-# Reset global variables
-term

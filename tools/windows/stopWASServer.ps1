@@ -2,7 +2,6 @@
 . C:\ProgramData\ConnectionsTools\ictools.ps1
 . (Join-Path "${PSScriptRoot}" utils.ps1)
 
-# Set global variables
 init
 
 # Make sure we're running as admin
@@ -23,8 +22,8 @@ while (${argsList}.Count -gt 0) {
 	${argsList}.RemoveRange(0,2)
 }
 
-# Stop WAS server
-stopWASServer "${server}" "${wasProfileRoot}\${profile}"
-
-# Reset global variables
-term
+if ($(isServerInWASCell "${server}" "${profile}") -eq "true") {
+	stopWASServer "${server}" "${wasProfileRoot}\${profile}"
+} else {
+	Write-Host "Error: ${server} is not in WAS cell ${wasCellName}"
+}

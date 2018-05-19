@@ -40,25 +40,22 @@ function onlineSync() {
 function offlineSync() {
 
     # Build an array of WAS profiles
-    cd "${wasProfileRoot}" 2>/dev/null
-    local profiles=($(ls -d * 2>/dev/null))
+    if [[ "$(directoryExists "${wasProfileRoot}")" == "true" && "$(directoryHasSubDirs "${wasProfileRoot}")" == "true" ]]; then
+        cd "${wasProfileRoot}" && profiles=($(ls -d *))
+    else
+        log "Error: wasProfileRoot must be set to a valid directory in ictools.conf"
+    fi
 
-    # For each profile... 
     for profile in "${profiles[@]}"; do
-
-        # Only need to continue if the profile type is BASE
+        # Can only synchronize profiles of type BASE
         if [[ "$(isWASBaseProfile "${profile}")" == "true" ]]; then
-
-            # Test if the servers directory exists and contains at least one subdirectory 
-            cd "${wasProfileRoot}/${profile}/servers" 2>/dev/null && ls -d * >/dev/null 2>&1
-
-            # If there is no servers directory or there are no subdirectories, skip this profile 
-            if [[ ${?} != 0 ]]; then
+            # If there is no servers directory or it has no subdirectories, skip this profile 
+            if [[ "$(directoryExists "${wasProfileRoot}/${profile}/servers")" == "false" ||
+                  "$(directoryHasSubDirs "${wasProfileRoot}/${profile}/servers")" == "false" ]]; then 
                 continue
             else
                 # Get an array of servers
-                local servers=($(ls -d * 2>/dev/null))
-
+                cd "${wasProfileRoot}/${profile}/servers" && servers=($(ls -d * | grep "nodeagent")) 
                 # Make sure all servers are 1) part of the WAS cell and 2) stopped
                 local areAllServersInCell="true"
                 local areAllServersStopped="true"
@@ -70,14 +67,10 @@ function offlineSync() {
                         areAllServersStopped="false"
                     fi
                 done
-    
                 # Silently ignore any servers that are not part of this cell
                 if [[ "${areAllServersInCell}" == "true" ]]; then
                     printf "${left2Column}" "Synchronizing servers in ${profile} profile..."
-                else
-                    printf "${left2Column}" "Servers are not part of cell"
                 fi
-
                 # Try the sync if both checks pass
                 if [[ "${areAllServersInCell}" == "true" && "${areAllServersStopped}" == "true" ]]; then
                     "${wasProfileRoot}/${profile}/bin/syncNode.sh" "${wasDmgrHost}" "-user" "${wasAdmin}" "-password" "${wasAdminPwd}" >/dev/null 2>&1
@@ -91,9 +84,7 @@ function offlineSync() {
                    printf "${right2Column}" "${redText}FAILURE${normalText} (At least one server is still running)"
                 fi
             fi
-
         fi
-
     done
 
 }

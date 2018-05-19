@@ -31,5 +31,8 @@ function init() {
 
 init "${@}"
 
-# Stop WAS server
-stopWASServer "${server}" "${wasProfileRoot}/${profile}"
+if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
+    stopWASServer "${server}" "${wasProfileRoot}/${profile}"
+else
+    log "Error: ${server} is not in WAS cell ${wasCellName}"
+fi

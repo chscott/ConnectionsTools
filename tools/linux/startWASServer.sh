@@ -31,23 +31,18 @@ function init() {
 
 init "${@}"
 
-# Determine the profile type
-profileKey="${wasProfileRoot}/${profile}/properties/profileKey.metadata"
-if [[ -f "${profileKey}" ]]; then
-    profileType=$(getWASProfileType "${profileKey}")
-fi
-
-# Take appropriate action based on profile type
-if [[ "${profileType}" == "DEPLOYMENT_MANAGER" ]]; then
-    # Deployment manager profiles have no nodeagent, so just start the server directly
-    startWASServer "${server}" "${wasProfileRoot}/${profile}"
-elif [[ "${profileType}" == "BASE" ]]; then
-    if [[ "${server}" == "nodeagent" ]]; then
-        # Admin just wants to start the nodeagent, so only do that
-        startWASServer "nodeagent" "${wasProfileRoot}/${profile}"
-    else
-        # Admin wants to start the app server, so start the nodeagent first
-        startWASServer "nodeagent" "${wasProfileRoot}/${profile}"
+if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
+    if [[ "$(isWASDmgrProfile "${profile}")" == "true" ]]; then
         startWASServer "${server}" "${wasProfileRoot}/${profile}"
+    elif [[ "$(isWASBaseProfile "${profile}")" == "true" ]]; then
+        if [[ "${server}" == "nodeagent" ]]; then
+            startWASServer "nodeagent" "${wasProfileRoot}/${profile}"
+        else
+            # Admin wants to start the app server, so start the nodeagent first
+            startWASServer "nodeagent" "${wasProfileRoot}/${profile}"
+            startWASServer "${server}" "${wasProfileRoot}/${profile}"
+        fi
     fi
+else
+    log "Error: ${server} is not in WAS cell ${wasCellName}"
 fi

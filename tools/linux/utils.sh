@@ -74,6 +74,40 @@ function log() {
 
 }
 
+# Verify that a given directory exists
+function directoryExists() {
+
+    local directory="${1}"
+
+    if [[ -d "${directory}" ]]; then
+        echo "true"
+    else
+        echo "false"
+    fi
+
+}
+
+# Verify that a given directory has subdirectories
+function directoryHasSubDirs() {
+
+    local directory="${1}"
+    local status="false"
+
+    cd "${directory}" 2>&1
+
+    # No error, so directory exists
+    if [[ ${?} == 0 ]]; then
+        ls -d * >/dev/null 2>&1 
+        # No error, so at least one subdir was found
+        if [[ ${?} == 0 ]]; then
+            status="true"
+        fi
+    fi           
+
+    echo "${status}"
+
+}
+
 # Given a profileKey.metadata file, return the profile type
 function getWASProfileType() {
 

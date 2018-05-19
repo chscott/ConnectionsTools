@@ -2,7 +2,6 @@
 . C:\ProgramData\ConnectionsTools\ictools.ps1
 . (Join-Path "${PSScriptRoot}" utils.ps1)
 
-# Set global variables
 init
 
 # Make sure we're running as admin
@@ -29,6 +28,3 @@ if (!$(Test-Path "${xmlFile}")) {
 }
 
 xmllint -schema "${xsdFile}" "${xmlFile}" --noout
-
-# Reset global variables
-term

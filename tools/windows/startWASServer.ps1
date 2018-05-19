@@ -2,7 +2,6 @@
 . C:\ProgramData\ConnectionsTools\ictools.ps1
 . (Join-Path "${PSScriptRoot}" utils.ps1)
 
-# Set global variables
 init
 
 # Make sure we're running as admin
@@ -21,26 +20,18 @@ while (${argsList}.Count -gt 0) {
 	${argsList}.RemoveRange(0,2)
 }
 
-# Determine the profile type
-$profileKey="${wasProfileRoot}\${profile}\properties\profileKey.metadata"
-if (Test-Path -Path "${profileKey}") {
-    $profileType=$(getWASProfileType "${profileKey}")
+if ($(isServerInWASCell "${server}" "${profile}") -eq "true") {
+	if ($(isWASDmgrProfile "${profile}") -eq "true") {
+		startWASServer "${server}" "${wasProfileRoot}\${profile}"
+	} elseif ($(isWASBaseProfile "${profile}") -eq "true") {
+		if ("${server}" -eq "nodeagent") {
+			startWASServer "nodeagent" "${wasProfileRoot}\${profile}"
+		} else {
+			# Admin wants to start the app server, so start the nodeagent first
+			startWASServer "nodeagent" "${wasProfileRoot}\${profile}"
+			startWASServer "${server}" "${wasProfileRoot}\${profile}"
+		}
+	}
+} else {
+	Write-Host "Error: ${server} is not in WAS cell ${wasCellName}"
 }
-
-# Take appropriate action based on profile type
-if ("${profileType}" -eq "DEPLOYMENT_MANAGER") {
-    # Deployment manager profiles have no nodeagent, so just start the server directly
-    startWASServer "${server}" "${wasProfileRoot}\${profile}"
-} elseif ("${profileType}" -eq "BASE") {
-    if ("${server}" -eq "nodeagent") {
-        # Admin just wants to start the nodeagent, so only do that
-        startWASServer "nodeagent" "${wasProfileRoot}\${profile}"
-    } else {
-        # Admin wants to start the app server, so start the nodeagent first
-        startWASServer "nodeagent" "${wasProfileRoot}\${profile}"
-        startWASServer "${server}" "${wasProfileRoot}\${profile}"
-    }
-}
-
-# Reset global variables
-term

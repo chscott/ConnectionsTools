@@ -9,14 +9,6 @@ function init() {
 
 }
 
-function term() { 
-
-	$script:ErrorActionPreference = "Continue"
-	$script:WarningPreference = "Continue"
-	$script:ProgressPreference = "Continue"
-
-}
-
 # Tests to make sure the effective user ID is Administrator
 function checkForAdmin() {
 
@@ -73,6 +65,27 @@ function log($message) {
 
 }
 
+# Verify that a given directory exists
+function directoryExists($directory) {
+
+	if (Test-Path -Path "${directory}") {
+		return "true"
+	} else {
+		return "false"
+	}
+	
+}
+
+# Verify that a given directory has subdirectories
+function directoryHasSubDirs($directory) {
+	if ($((Get-ChildItem "${directory}" -Directory | Measure-Object).Count -gt 0 2>${null})) {
+		return "true"
+	} else {
+		return "false"
+	}
+	
+}
+
 # Given a profileKey.metadata file, return the profile type
 function getWASProfileType($profileKeyFile) {
 
@@ -89,10 +102,87 @@ function getWASProfileType($profileKeyFile) {
 
 }
 
+# Determine if a given profile is of type DEPLOYMENT_MANAGER
+function isWASDmgrProfile($profile) {
+
+	# Determine the profile type
+    $profileKey="${wasProfileRoot}\${profile}\properties\profileKey.metadata"
+    if (Test-Path "${profileKey}") {
+        $profileType=$(getWASProfileType "${profileKey}")
+    }
+
+    if ("${profileType}" -eq "DEPLOYMENT_MANAGER") {
+		return "true"
+	} else {
+		return "false"
+	}
+
+}
+
+# Determine if a given profile is of type BASE
+function isWASBaseProfile($profile) {
+
+	# Determine the profile type
+    $profileKey="${wasProfileRoot}\${profile}\properties\profileKey.metadata"
+    if (Test-Path "${profileKey}") {
+        $profileType=$(getWASProfileType "${profileKey}")
+    }
+
+    if ("${profileType}" -eq "BASE") {
+		return "true"
+	} else {
+		return "false"
+	}
+
+}
+
+# Determine if a given server is part of the WAS cell
+function isServerInWASCell($server, $profile) {
+
+	$isInCell="false"
+	$server
+	$profile
+		
+	# Build an array of servers known to this cell
+	$cellServers=$(
+		Get-ChildItem -Path "${wasProfileRoot}\${profile}\config\cells\${wasCellName}\nodes" -Recurse -Include serverindex.xml 2>${null} | 
+		Select-String "serverName" |
+		ForEach-Object { 
+			$_.ToString().Split() | 
+			Select-String serverName | 
+			foreach { 
+				$_.Line.Split('=').Replace('"','') | 
+				Select-String -NotMatch serverName
+			}
+		}
+	) | Sort-Object -Unique
+	
+	# Verify that this server exists in the cell
+	foreach ($cellServer in ${cellServers}) {
+		if ("${cellServer}" -eq "${server}") {
+			$isInCell="true"
+		}
+	}
+
+	return "${isInCell}"
+
+}
+
 # Check to see if Deployment Manager is available
 function isDmgrAvailable() {
 
+	# Test-NetConnection appears to need the global scope vars to be set to SilentlyContinue
+	$global:ErrorActionPreference = "SilentlyContinue"
+	$global:WarningPreference = "SilentlyContinue"
+	$global:ProgressPreference = "SilentlyContinue"
+	
     $status=$((Test-NetConnection -ComputerName "${wasDmgrHost}" -Port ${wasDmgrSoapPort}).TcpTestSucceeded)
+	
+	# Reset the global scope vars
+	$global:ErrorActionPreference = "Continue"
+	$global:WarningPreference = "Continue"
+	$global:ProgressPreference = "Continue"
+	
 	return "${status}"
 
 }
@@ -104,7 +194,7 @@ function isDmgrAvailable() {
 function getWASServerStatus($server, $profile, $noDisplay) {
 	
     # If no WAS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
-	if (!"${wasInstallDir}" -Or !(Test-Path "${wasInstallDir}")) {
+	if (!"${wasInstallDir}" -or !(Test-Path "${wasInstallDir}")) {
 		return
 	}
 
@@ -160,7 +250,7 @@ function startWASServer($server, $profile) {
 	$status=$(& "${profile}\bin\startServer.bat" "${server}" *>&1)
 
     # Check to see if server is started
-    if ("${status}" -Like "*ADMU3027E*" -Or "${status}" -Like "*ADMU3000I*") {
+    if ("${status}" -Like "*ADMU3027E*" -or "${status}" -Like "*ADMU3000I*") {
         Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
     } else {
         Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
@@ -182,7 +272,7 @@ function stopWASServer($server, $profile) {
 	$status=$(& "${profile}\bin\stopServer.bat" "${server}" -username "${wasAdmin}" -password "${wasAdminPwd}" *>&1)
 	
 	# Check to see if server is stopped
-    if ("${status}" -Like "*ADMU0509I*" -Or "${status}" -Like "*ADMU4000I*") {
+    if ("${status}" -Like "*ADMU0509I*" -or "${status}" -Like "*ADMU4000I*") {
         Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
     } else {
         Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
@@ -194,7 +284,7 @@ function stopWASServer($server, $profile) {
 function getIHSServerStatus() {
 
 	# If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
-	if (!"${ihsInstallDir}" -Or !(Test-Path "${ihsInstallDir}")) {
+	if (!"${ihsInstallDir}" -or !(Test-Path "${ihsInstallDir}")) {
 		return
 	}
 		
@@ -215,7 +305,7 @@ function getIHSServerStatus() {
 function startIHSServer() {
 
     # If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
-    if (!"${ihsInstallDir}" -Or !(Test-Path "${ihsInstallDir}")) {
+    if (!"${ihsInstallDir}" -or !(Test-Path "${ihsInstallDir}")) {
         log "IHS does not appear to be installed on this system. Exiting."
         exit 0
     }
@@ -238,7 +328,7 @@ function startIHSServer() {
 function stopIHSServer() {
 
     # If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
-    if (!"${ihsInstallDir}" -Or !(Test-Path "${ihsInstallDir}")) {
+    if (!"${ihsInstallDir}" -or !(Test-Path "${ihsInstallDir}")) {
         log "IHS does not appear to be installed on this system. Exiting."
         exit 0
     }
@@ -269,7 +359,7 @@ function stopIHSServer() {
 function getDB2ServerStatus() {
 
     # If no DB2 installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
-	if (!"${db2InstallDir}" -Or !(Test-Path "${db2InstallDir}")) {
+	if (!"${db2InstallDir}" -or !(Test-Path "${db2InstallDir}")) {
         return
     }
 	
@@ -290,7 +380,7 @@ function getDB2ServerStatus() {
 function startDB2Server() {
 
     # If no DB2 installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
-    if (!"${db2InstallDir}" -Or !(Test-Path "${db2InstallDir}")) {
+    if (!"${db2InstallDir}" -or !(Test-Path "${db2InstallDir}")) {
         log "DB2 does not appear to be installed on this system. Exiting."
         exit 0
     }
@@ -299,8 +389,11 @@ function startDB2Server() {
 
 	$status=$(& "${db2InstallDir}\bin\db2start.exe" *>&1)
 
-    if ("${status}" -Like "*SQL1063N*" -Or "${status}" -Like "*SQL1026N*") {
+    if ("${status}" -Like "*SQL1063N*" -or "${status}" -Like "*SQL1026N*") {
         Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
+	} elseif ("${status}" -Like "*SQL1025N*") {
+		Write-Host -NoNewLine -ForegroundColor Red ("{0,-7}" -f "FAILURE")
+		Write-Host " (active connections)"
     } else {
         Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE") 
     }
@@ -311,7 +404,7 @@ function startDB2Server() {
 function stopDB2Server() {
 
     # If no DB2 installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
-    if (!"${db2InstallDir}" -Or !(Test-Path "${db2InstallDir}")) {
+    if (!"${db2InstallDir}" -or !(Test-Path "${db2InstallDir}")) {
         log "DB2 does not appear to be installed on this system. Exiting."
         exit 0
     }
@@ -320,10 +413,12 @@ function stopDB2Server() {
 
     $status=$(& "${db2InstallDir}\bin\db2stop.exe" *>&1)
 	
-	if ("${status}" -Like "*SQL1064N*" -Or "${status}" -Like "*SQL1032N*") {
+	if ("${status}" -Like "*SQL1064N*" -or "${status}" -Like "*SQL1032N*") {
         Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
     } else {
         Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE") 
     }
 
 }
+
+init

@@ -2,7 +2,6 @@
 . C:\ProgramData\ConnectionsTools\ictools.ps1
 . (Join-Path "${PSScriptRoot}" utils.ps1)
 
-# Set global variables
 init
 
 # Make sure we're running as admin
@@ -12,36 +11,27 @@ checkForAdmin
 checkForDmgr
 
 # Build an array of WAS profiles
-if (Test-Path -Path "${wasProfileRoot}") {
+if ($(directoryExists "${wasProfileRoot}") -eq "true" -and $(directoryHasSubDirs "${wasProfileRoot}") -eq "true") {
 	$profiles=$(Get-ChildItem -Directory "${wasProfileRoot}")
+} else {
+	log "Error: wasProfileRoot must be set to a valid directory in ictools.conf"
 }
 
-# Find the Deployment Manager profile
-ForEach ($profile In ${profiles}) {
-
-	# Determine the profile type
-    $profileKey="${wasProfileRoot}\${profile}\properties\profileKey.metadata"
-    if (Test-Path "${profileKey}") {
-        $profileType=$(getWASProfileType "${profileKey}")
-    }
-
-    if ("${profileType}" -eq "DEPLOYMENT_MANAGER") {
-
-        # If the profile directory has no servers directory, skip it
-		if (Test-Path -Path "${wasProfileRoot}\${profile}\servers") {
+foreach ($profile in ${profiles}) {
+    if ($(isWASDmgrProfile "${profile}") -eq "true") {
+		# If there is no servers directory or it has no subdirectories, skip this profile
+		if ($(directoryExists "${wasProfileRoot}\${profile}\servers") -eq "false" -or 
+			$(directoryHasSubDirs "${wasProfileRoot}\${profile}\servers") -eq "false") {
+			continue
+		} else {
+			# Get an array of servers
             $servers=$(Get-ChildItem -Directory "${wasProfileRoot}\${profile}\servers") 
-            # Start the server (should only be one for Deployment Manager)
-            ForEach ($server in ${servers}) {
-                startWASServer "${server}" "${wasProfileRoot}\${profile}"
+            foreach ($server in ${servers}) {
+				if ($(isServerInWASCell "${server}" "${profile}") -eq "true") {
+					# The server is part of the cell, so go ahead and start it
+					startWASServer "${server}" "${wasProfileRoot}\${profile}"
+				}
             }
-        } else {
-            log "No servers were found in the ${profile} profile"
-            exit 1
-        }
-		
+        }	
     }
-
 }
-
-# Reset global variables
-term
