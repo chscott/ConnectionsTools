@@ -8,7 +8,8 @@ init
 checkForAdmin
 
 # Process the user arguments
-$argsList = New-Object System.Collections.ArrayList(,${args})
+$argsList=New-Object System.Collections.ArrayList(,${args})
+$profile=$server=$null
 while (${argsList}.Count -gt 0) {
 	$key=${argsList}[0]
 	$value=${argsList}[1]

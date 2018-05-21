@@ -250,7 +250,7 @@ function startWASServer($server, $profile) {
 	$status=$(& "${profile}\bin\startServer.bat" "${server}" *>&1)
 
     # Check to see if server is started
-    if ("${status}" -Like "*ADMU3027E*" -or "${status}" -Like "*ADMU3000I*") {
+    if ("${status}" -like "*ADMU3027E*" -or "${status}" -like "*ADMU3000I*") {
         Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
     } else {
         Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
@@ -272,7 +272,7 @@ function stopWASServer($server, $profile) {
 	$status=$(& "${profile}\bin\stopServer.bat" "${server}" -username "${wasAdmin}" -password "${wasAdminPwd}" *>&1)
 	
 	# Check to see if server is stopped
-    if ("${status}" -Like "*ADMU0509I*" -or "${status}" -Like "*ADMU4000I*") {
+    if ("${status}" -like "*ADMU0509I*" -or "${status}" -like "*ADMU4000I*") {
         Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
     } else {
         Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
@@ -389,9 +389,9 @@ function startDB2Server() {
 
 	$status=$(& "${db2InstallDir}\bin\db2start.exe" *>&1)
 
-    if ("${status}" -Like "*SQL1063N*" -or "${status}" -Like "*SQL1026N*") {
+    if ("${status}" -like "*SQL1063N*" -or "${status}" -like "*SQL1026N*") {
         Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
-	} elseif ("${status}" -Like "*SQL1025N*") {
+	} elseif ("${status}" -like "*SQL1025N*") {
 		Write-Host -NoNewLine -ForegroundColor Red ("{0,-7}" -f "FAILURE")
 		Write-Host " (active connections)"
     } else {
@@ -413,7 +413,7 @@ function stopDB2Server() {
 
     $status=$(& "${db2InstallDir}\bin\db2stop.exe" *>&1)
 	
-	if ("${status}" -Like "*SQL1064N*" -or "${status}" -Like "*SQL1032N*") {
+	if ("${status}" -like "*SQL1064N*" -or "${status}" -like "*SQL1032N*") {
         Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
     } else {
         Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE") 
