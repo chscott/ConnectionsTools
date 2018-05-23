@@ -10,7 +10,7 @@ checkForAdmin
 # Make sure TDI is available on this system
 checkForTDI
 
-Write-Host -NoNewLine ("{0,-60}" -f "Synchronizing Profiles with LDAP...")
+Write-Host -NoNewLine ("{0,${left2Column}}" -f "Synchronizing Profiles with LDAP...")
 
 # Change directories to run the command (only seems to be required for Windows)
 Push-Location -Path "${tdiSolutionDir}" -StackName ConnectionsTools
@@ -19,9 +19,9 @@ Push-Location -Path "${tdiSolutionDir}" -StackName ConnectionsTools
 
 # Report status
 if (${?}) {
-    Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
+    Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
 } else {
-    Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
+    Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
 }
 
 # Change back to the previous directory

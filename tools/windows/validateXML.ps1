@@ -8,9 +8,9 @@ init
 checkForAdmin
 
 # Verify commands are available
-Get-Command xmllint *>${null}
+Get-Command "xmllint.exe" *>${null}
 if (!${?}) {
-	log "The xmllint command is required to run this script"
+	log "The xmllint.exe command is required to run this script"
 	exit 1
 } 
 

@@ -24,5 +24,5 @@ while (${argsList}.Count -gt 0) {
 if ($(isServerInWASCell "${server}" "${profile}") -eq "true") {
 	stopWASServer "${server}" "${wasProfileRoot}\${profile}"
 } else {
-	Write-Host "Error: ${server} is not in WAS cell ${wasCellName}"
+	log "Error: ${server} is not in WAS cell ${wasCellName}"
 }

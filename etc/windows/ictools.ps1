@@ -3,9 +3,9 @@ $wasInstallDir="C:\IBM\WebSphere\AppServer"
 $wasAdmin="wasadmin"
 $wasAdminPwd="password"
 $wasCellName="icCell"
-$wasProfileRoot="C:\IBM\WebSphere\AppServer\profiles"
+$wasProfileRoot="${wasInstallDir}\profiles"
 $wasDmgrProfile="${wasProfileRoot}\dmgr"
-$wasDmgrHost="ldap.swg.usma.ibm.com"
+$wasDmgrHost="cs-connections.swg.usma.ibm.com"
 $wasDmgrSoapPort=8879
 
 # IHS
@@ -16,7 +16,7 @@ $icInstallDir="C:\IBM\Connections"
 $icFixesDir="${icInstallDir}\updateInstaller\fixes"
 
 # TDI
-$tdiSolutionDir="C:\temp\IBM\TDI\tdisol"
+$tdiSolutionDir="C:\IBM\TDI\tdisol"
 
 # DB2
 $db2InstallDir="C:\Program Files\IBM\sdsV6.3.1db2"
@@ -27,6 +27,11 @@ $db2ServiceName="DB2DS631-0"
 $separator="================================================================================"
 # Some services require a short delay during start/stop operations
 $serviceDelaySeconds=5
+$left2Column=-60
+$right2Column=-7
+$left3Column=-20
+$middle3Column=-40
+$right3Column=-7
 # Add any apps here for which file differences will not be reported by compareApps.sh.
 # This is primarily for Help.ear, which is always different and insignificant.
 #excludeCompareApps=(

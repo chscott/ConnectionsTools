@@ -18,16 +18,16 @@ $mode=${args}[0]
 
 function onlineSync() {
 
-	Write-Host -NoNewLine ("{0,-60}" -f "Synchronizing active nodes...")
+	Write-Host -NoNewLine ("{0,${left2Column}}" -f "Synchronizing active nodes...")
 	
     # Call wsadmin with the syncNodes.py script to perform online sync
     & "${PSScriptRoot}\wsadmin.ps1" "${PSScriptRoot}\wsadmin\syncNodes.py" *>${null}
  
     # Report status
     if (${?}) {
-        Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
+        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
     } else {
-        Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
+        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
     }
 
 }
@@ -53,19 +53,19 @@ function offlineSync($profiles) {
 				$server=$(Get-ChildItem -Directory "${wasProfileRoot}\${profile}\servers" | Select-String -Pattern "nodeagent" | Select-Object -First 1) 
 				# Make sure the nodeagent is part of the cell
 				if ($(isServerInWASCell "${server}" "${profile}") -eq "true") {
-					Write-Host -NoNewLine ("{0,-60}" -f "Synchronizing servers in ${profile} profile...")
+					Write-Host -NoNewLine ("{0,${left2Column}}" -f "Synchronizing servers in ${profile} profile...")
 					# Make sure the nodeagent is stopped
 					if ($(getWASServerStatus "${server}" "${wasProfileRoot}\${profile}" "true") -eq "STOPPED") {
 						# Do the sync
 						& "${wasProfileRoot}\${profile}\bin\syncNode.bat" "${wasDmgrHost}" "-user" "${wasAdmin}" "-password" "${wasAdminPwd}" *>${null}
 						# Log status
 						if (${?}) {
-							Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
+							Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
 						} else {
-							Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
+							Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
 						}
 					} else {
-						Write-Host -NoNewLine -ForegroundColor Red ("{0,-7}" -f "FAILURE")
+						Write-Host -NoNewLine -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
 						Write-Host " (nodeagent is still running)"
 					}
 				}

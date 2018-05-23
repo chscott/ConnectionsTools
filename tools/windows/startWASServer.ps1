@@ -34,5 +34,5 @@ if ($(isServerInWASCell "${server}" "${profile}") -eq "true") {
 		}
 	}
 } else {
-	Write-Host "Error: ${server} is not in WAS cell ${wasCellName}"
+	log "Error: ${server} is not in WAS cell ${wasCellName}"
 }

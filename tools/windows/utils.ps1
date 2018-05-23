@@ -1,12 +1,27 @@
 # Source the prereqs
 . C:\ProgramData\ConnectionsTools\ictools.ps1
 
+# Print message
+function log($message) {
+
+    "{0}" -f "${message}"
+
+}
+
 function init() { 
 
+	# Set script variables
 	$script:ErrorActionPreference = "SilentlyContinue"
 	$script:WarningPreference = "SilentlyContinue"
 	$script:ProgressPreference = "SilentlyContinue"
-
+	
+	# Ensure minimum PS version
+	$psVersion=$PSVersionTable.PSVersion.Major
+	if (${psVersion} -lt 5) {
+		log "Unsupported PowerShell version. Please upgrade to PowerShell 5 or later."
+		exit 1
+	}
+	
 }
 
 # Tests to make sure the effective user ID is Administrator
@@ -15,7 +30,7 @@ function checkForAdmin() {
     $script=$(Split-Path $($MyInvocation.ScriptName) -Leaf)
 
     if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-        Write-Host "${script} needs to run as Administrator. Exiting."
+        log "${script} needs to run as Administrator. Exiting."
         exit 1
     }
 
@@ -27,7 +42,7 @@ function checkForDmgr() {
     $script=$(Split-Path $($MyInvocation.ScriptName) -Leaf)
 
     if (!(Test-Path -Path "${wasDmgrProfile}")) {
-        Write-Host "${script} can only run on the Deployment Manager node. Exiting."
+        log "${script} can only run on the Deployment Manager node. Exiting."
         exit 1
     }
 
@@ -40,7 +55,7 @@ function checkForIC() {
 	
 
     if (!(Test-Path -Path "${icInstallDir}")) {
-        Write-Host "${script} can only run on Connections nodes. Exiting."
+        log "${script} can only run on Connections nodes. Exiting."
         exit 1
     }
 
@@ -52,16 +67,9 @@ function checkForTDI() {
     $script=$(Split-Path $($MyInvocation.ScriptName) -Leaf)
 
     if (!(Test-Path -Path "${tdiSolutionDir}")) {
-        Write-Host "${script} can only run on TDI nodes. Exiting."
+        log "${script} can only run on TDI nodes. Exiting."
         exit 1
     }
-
-}
-
-# Print message
-function log($message) {
-
-    "{0}" -f "${message}"
 
 }
 
@@ -203,7 +211,7 @@ function getWASServerStatus($server, $profile, $noDisplay) {
 	
 	# Only print info if noDisplay is not true
 	if ("${noDisplay}" -ne "true") {
-		Write-Host -NoNewLine ("{0,-20}{1,-40}" -f "Server: ${server}", "Profile: ${profileBasename}")
+		Write-Host -NoNewLine ("{0,${left2Column}}" -f "Server: ${profileBasename}.${server}")
 	}
 	
 	# This approach is much faster than using serverStatus.bat and unlikely to yield false positives
@@ -221,7 +229,7 @@ function getWASServerStatus($server, $profile, $noDisplay) {
 			return "STARTED"
 		} else {
 			# Display status
-			Write-Host -ForegroundColor Green ("{0,-7}" -f "STARTED")
+			Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "STARTED")
 		}
 	} else {
 		# If we did not find a match, the server is stopped
@@ -230,7 +238,7 @@ function getWASServerStatus($server, $profile, $noDisplay) {
 			return "STOPPED"
 		} else {
 			# Display status
-			Write-Host -ForegroundColor Red ("{0,-7}" -f "STOPPED")
+			Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "STOPPED")
 		}
 	}
 	
@@ -244,16 +252,16 @@ function startWASServer($server, $profile) {
 	# Get the basename of the profile directory
 	$profileBasename=$(Split-Path "${profile}" -Leaf)
 
-    Write-Host -NoNewLine ("{0,-60}" -f "Starting server ${server} in profile ${profileBasename}...")
+    Write-Host -NoNewLine ("{0,${left2Column}}" -f "Starting server ${server} in profile ${profileBasename}...")
 
     # Get the result of the startServer.bat command
 	$status=$(& "${profile}\bin\startServer.bat" "${server}" *>&1)
 
     # Check to see if server is started
     if ("${status}" -like "*ADMU3027E*" -or "${status}" -like "*ADMU3000I*") {
-        Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
+        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
     } else {
-        Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
+        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
     }
 
 }
@@ -266,16 +274,16 @@ function stopWASServer($server, $profile) {
 	# Get the basename of the profile directory
 	$profileBasename=$(Split-Path "${profile}" -Leaf)
 
-    Write-Host -NoNewLine ("{0,-60}" -f "Stopping server ${server} in profile ${profileBasename}...")
+    Write-Host -NoNewLine ("{0,${left2Column}}" -f "Stopping server ${server} in profile ${profileBasename}...")
 
     # Get the result of the startServer.bat command
 	$status=$(& "${profile}\bin\stopServer.bat" "${server}" -username "${wasAdmin}" -password "${wasAdminPwd}" *>&1)
 	
 	# Check to see if server is stopped
     if ("${status}" -like "*ADMU0509I*" -or "${status}" -like "*ADMU4000I*") {
-        Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
+        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
     } else {
-        Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
+        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
     }
 
 }
@@ -288,15 +296,15 @@ function getIHSServerStatus() {
 		return
 	}
 		
-	Write-Host -NoNewLine ("{0,-60}" -f "Server: IHS")
+	Write-Host -NoNewLine ("{0,${left2Column}}" -f "Server: IHS")
 
     # See if the server is running
 	if (Get-WmiObject Win32_Process -Filter "Name='httpd.exe'") {
 		# If we found a match, the server is started
-        Write-Host -ForegroundColor Green ("{0,-7}" -f "STARTED")
+        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "STARTED")
 	} else {
 		# If we did not find a match, the server is stopped
-        Write-Host -ForegroundColor Red ("{0,-7}" -f "STOPPED")
+        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "STOPPED")
 	}
 
 }
@@ -310,16 +318,16 @@ function startIHSServer() {
         exit 0
     }
 
-    Write-Host -NoNewLine ("{0,-60}" -f "Starting IHS server...")
+    Write-Host -NoNewLine ("{0,${left2Column}}" -f "Starting IHS server...")
 
 	# Stop the server
     $status=$(& "${ihsInstallDir}\bin\apache.exe" -k "start" *>${null})
     
 	# Check to see if server is started
     if (Get-WmiObject Win32_Process -Filter "Name='httpd.exe'") {
-        Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
+        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
     } else {
-        Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
+        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
     }
 
 }
@@ -333,7 +341,7 @@ function stopIHSServer() {
         exit 0
     }
 
-	Write-Host -NoNewLine ("{0,-60}" -f "Stopping IHS server...")
+	Write-Host -NoNewLine ("{0,${left2Column}}" -f "Stopping IHS server...")
 
     # Stop the server
     $status=$(& "${ihsInstallDir}\bin\apache.exe" -k "stop" *>${null})
@@ -348,9 +356,9 @@ function stopIHSServer() {
 
     # Check to see if server is stopped
     if (Get-WmiObject Win32_Process -Filter "Name='httpd.exe'") {
-        Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE")
+        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
     } else {
-        Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
+        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
     }
 
 }
@@ -363,15 +371,15 @@ function getDB2ServerStatus() {
         return
     }
 	
-	Write-Host -NoNewLine ("{0,-60}" -f "Server: DB2")
+	Write-Host -NoNewLine ("{0,${left2Column}}" -f "Server: DB2")
 
     # See if the server is running
 	if (Get-WmiObject Win32_Process -Filter "Name='db2sysc.exe' OR Name='db2syscs.exe'") {
 		# If we found a match, the server is started
-        Write-Host -ForegroundColor Green ("{0,-7}" -f "STARTED")
+        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "STARTED")
 	} else {
 		# If we did not find a match, the server is stopped
-        Write-Host -ForegroundColor Red ("{0,-7}" -f "STOPPED")
+        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "STOPPED")
 	}
 
 }
@@ -385,17 +393,17 @@ function startDB2Server() {
         exit 0
     }
 
-	Write-Host -NoNewLine ("{0,-60}" -f "Starting DB2...")
+	Write-Host -NoNewLine ("{0,${left2Column}}" -f "Starting DB2...")
 
 	$status=$(& "${db2InstallDir}\bin\db2start.exe" *>&1)
 
     if ("${status}" -like "*SQL1063N*" -or "${status}" -like "*SQL1026N*") {
-        Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
+        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
 	} elseif ("${status}" -like "*SQL1025N*") {
-		Write-Host -NoNewLine -ForegroundColor Red ("{0,-7}" -f "FAILURE")
+		Write-Host -NoNewLine -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
 		Write-Host " (active connections)"
     } else {
-        Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE") 
+        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE") 
     }
 
 }
@@ -409,16 +417,19 @@ function stopDB2Server() {
         exit 0
     }
 
-    Write-Host -NoNewLine ("{0,-60}" -f "Stopping DB2...")
+    Write-Host -NoNewLine ("{0,${left2Column}}" -f "Stopping DB2...")
 
     $status=$(& "${db2InstallDir}\bin\db2stop.exe" *>&1)
 	
 	if ("${status}" -like "*SQL1064N*" -or "${status}" -like "*SQL1032N*") {
-        Write-Host -ForegroundColor Green ("{0,-7}" -f "SUCCESS")
+        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
     } else {
-        Write-Host -ForegroundColor Red ("{0,-7}" -f "FAILURE") 
+        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE") 
     }
 
 }
 
-init
+# Set script variables
+$script:ErrorActionPreference = "SilentlyContinue"
+$script:WarningPreference = "SilentlyContinue"
+$script:ProgressPreference = "SilentlyContinue"
