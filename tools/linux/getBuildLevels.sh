@@ -19,62 +19,62 @@ function init() {
         exit 1
     fi 
 
-    dmgrAppsDir="${wasDmgrProfile}/config/cells/${wasCellName}/applications"
     notAvailable="${redText}Data missing from manifest${normalText}"
     # Add any apps to this list that you want to ignore. Generally, that means non-Connections apps
     excludes=(
-        "commsvc.ear"
-        "DefaultApplication.ear"
-        "ibmasyncrsp.ear"
-        "isclite.ear"
-        "ivtApp.ear"
-        "OTiS.ear"
-        "query.ear"
-        "WebSphereOauth20SP.ear"
-        "WebSphereWSDM.ear"
+        "commsvc"
+        "DefaultApplication"
+        "ibmasyncrsp"
+        "isclite"
+        "ivtApp"
+        "OTiS"
+        "query"
+        "WebSphereOauth20SP"
+        "WebSphereWSDM"
     )
 
 }
 
 init "${@}"
 
-# Keep track of the EARs as we are processing them
-currentEar=""
-earCounter=0
+# Keep track of the Apps as we are processing them
+currentApp=""
+appCounter=0
 
 # Get all manifest files and loop through them
-find "${dmgrAppsDir}" -name "MANIFEST.MF" -print0 | \
+find "${wasDmgrProfile}/config/cells/${wasCellName}/applications" -name "MANIFEST.MF" -print0 | \
 while IFS= read -r -d '' file; do
 
-    # Get the EAR file 
-    ear=$(echo "${file}" | cut -d / -f12)
+    # Get the app
+    app=$(echo "${file}" | sed -n 's|.*applications\/\(.*\).ear\/deployments.*|\1|p')
 
-    # Get the module path
-    module=$(echo "${file}" | cut -d / -f14- | awk -F "/" '{$1=$NF=$(NF-1)="";print $0}' | tr -d '[:blank:]')
-
-    # Check to see if the current module is in the exclude array (skip if it is)
-    skipManifest=false
+    # Check to see if the App is in the exclude array (skip if it is)
     for exclude in "${excludes[@]}"; do
-        if [[ "${exclude}" == "${ear}" ]]; then
-            skipManifest=true
+        if [[ "${exclude}" == "${app}" ]]; then
+            continue 2
         fi
     done
-    if [[ "${skipManifest}" == "true" ]]; then
-        continue
+
+    # Get the module
+    module=$(echo "${file}" | awk -F "/" '{print $(NF-2)}')
+
+    # Check if we found the module for the App itself and give it a more friendly name
+    if [[ "${module}" == "${app}" ]]; then
+        module="${module}.ear"
     fi
 
-    # Update the currentEar, if necessary
-    if [[ "${ear}" != "${currentEar}" ]]; then
+    # Update the currentApp, if necessary
+    if [[ "${app}" != "${currentApp}" ]]; then
         log "${separator}"
-        currentEar="${ear}"
-        earCounter=0
+        currentApp="${app}"
+        appCounter=0
     else
-        earCounter=$((++earCounter))
+        appCounter=$((++appCounter))
     fi
 
-    # Print the EAR name only if it's the first pass for that EAR
-    if [[ ${earCounter} == 0 ]]; then
-        printf '%-10s %-s\n' 'EAR:' "${ear}"
+    # Print the App name only if it's the first pass for that App
+    if [[ ${appCounter} == 0 ]]; then
+        printf '%-10s %-s\n' 'App:' "${app}"
     fi
 
     # Get the title from the manifest
@@ -91,7 +91,7 @@ while IFS= read -r -d '' file; do
 
     # Print the module name
     if [[ -z "${module}" ]]; then
-        printf "\n%-10s %-s\n" "Module:" "${ear}"
+        printf "\n%-10s %-s\n" "Module:" "${app}"
     else
         printf "\n%-10s %-s\n" "Module:" "${module}"
     fi
