@@ -8,13 +8,26 @@ init
 checkForAdmin
 
 # Start DB2
-& "${PSScriptRoot}\startDB2.ps1"
+if ($(directoryExists "${db2InstallDir}") -eq "true") {
+	& "${PSScriptRoot}\startDB2.ps1"
+}
 
 # Start IHS
-& "${PSScriptRoot}\startIHS.ps1"
+if ($(directoryExists "${ihsInstallDir}") -eq "true") {
+	& "${PSScriptRoot}\startIHS.ps1"
+}
 
 # Start WAS Deployment Manager
-& "${PSScriptRoot}\startDmgr.ps1"
+if ($(directoryExists "${wasDmgrProfile}") -eq "true") {
+	& "${PSScriptRoot}\startDmgr.ps1"
+}
 
-# Start WAS nodeagents and application servers
-& "${PSScriptRoot}\startAppServers.ps1"
+# Start WAS nodeagents
+if ($(directoryExists "${wasInstallDir}") -eq "true") {
+	& "${PSScriptRoot}\startNodeagents.ps1"
+}
+
+# Start WAS application servers
+if ($(directoryExists "${wasInstallDir}") -eq "true") {
+	& "${PSScriptRoot}\startAppServers.ps1"
+}

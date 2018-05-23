@@ -15,21 +15,33 @@ function init() {
 init "${@}"
 
 # Stop WAS servers
-"${scriptDir}/stopAppServers.sh"
+if [[ "$(directoryExists "${wasInstallDir}")" == "true" ]]; then
+    "${scriptDir}/stopAppServers.sh"
+fi
 
 # Stop WAS nodeagents
-"${scriptDir}/stopNodeagents.sh"
+if [[ "$(directoryExists "${wasInstallDir}")" == "true" ]]; then
+    "${scriptDir}/stopNodeagents.sh"
+fi
 
 # Stop WAS Deployment Manager
-"${scriptDir}/stopDmgr.sh"
+if [[ "$(directoryExists "${wasDmgrProfile}")" == "true" ]]; then
+    "${scriptDir}/stopDmgr.sh"
+fi
 
 # Stop IHS
-"${scriptDir}/stopIHS.sh"
+if [[ "$(directoryExists "${ihsInstallDir}")" == "true" ]]; then
+    "${scriptDir}/stopIHS.sh"
+fi
 
 # Stop Solr
-"${scriptDir}/stopSolr.sh"
+if [[ "$(directoryExists "${solrInstallDir}")" == "true" ]]; then
+    "${scriptDir}/stopSolr.sh"
+fi
 
 # Stop DB2
-"${scriptDir}/stopDB2.sh"
+if [[ "$(directoryExists "${db2InstallDir}")" == "true" ]]; then
+    "${scriptDir}/stopDB2.sh"
+fi
 
 # Stop Pink components

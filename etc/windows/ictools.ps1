@@ -29,9 +29,6 @@ $separator="====================================================================
 $serviceDelaySeconds=5
 $left2Column=-60
 $right2Column=-7
-$left3Column=-20
-$middle3Column=-40
-$right3Column=-7
 # Add any apps here for which file differences will not be reported by compareApps.sh.
 # This is primarily for Help.ear, which is always different and insignificant.
 #excludeCompareApps=(

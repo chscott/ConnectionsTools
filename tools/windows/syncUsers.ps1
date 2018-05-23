@@ -18,7 +18,7 @@ Push-Location -Path "${tdiSolutionDir}" -StackName ConnectionsTools
 & "${tdiSolutionDir}\sync_all_dns.bat" *>${null}
 
 # Report status
-if (${?}) {
+if (${LASTEXITCODE} -eq 0) {
     Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
 } else {
     Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")

@@ -24,7 +24,7 @@ function onlineSync() {
     & "${PSScriptRoot}\wsadmin.ps1" "${PSScriptRoot}\wsadmin\syncNodes.py" *>${null}
  
     # Report status
-    if (${?}) {
+    if (${LASTEXITCODE} -eq 0) {
         Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
     } else {
         Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
@@ -59,7 +59,7 @@ function offlineSync($profiles) {
 						# Do the sync
 						& "${wasProfileRoot}\${profile}\bin\syncNode.bat" "${wasDmgrHost}" "-user" "${wasAdmin}" "-password" "${wasAdminPwd}" *>${null}
 						# Log status
-						if (${?}) {
+						if (${LASTEXITCODE} -eq 0) {
 							Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
 						} else {
 							Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")

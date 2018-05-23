@@ -224,8 +224,7 @@ function getWASServerStatus() {
 
     # Only print info if noDisplay is not true
     if [[ "${noDisplay}" != "true" ]]; then
-        printf "${left3Column}" "Server: ${server}"
-        printf "${middle3Column}" "Profile: ${profileBasename}"
+        printf "${left2Column}" "Server: ${profileBasename}.${server}"
     fi
 
     # This approach is much faster than using serverStatus.sh and unlikely to yield false positives
@@ -238,7 +237,7 @@ function getWASServerStatus() {
             echo "STARTED"
         else
             # Display status 
-            printf "${right3Column}" "${greenText}STARTED${normalText}"
+            printf "${right2Column}" "${greenText}STARTED${normalText}"
         fi
     else 
         # If we did not find a match, the server is stopped
@@ -247,7 +246,7 @@ function getWASServerStatus() {
             echo "STOPPED"
         else
             # Display status 
-            printf "${right3Column}" "${redText}STOPPED${normalText}"
+            printf "${right2Column}" "${redText}STOPPED${normalText}"
         fi
     fi
 

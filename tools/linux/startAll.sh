@@ -15,18 +15,33 @@ function init() {
 init "${@}"
 
 # Start DB2
-"${scriptDir}/startDB2.sh"
+if [[ "$(directoryExists "${db2InstallDir}")" == "true" ]]; then
+    "${scriptDir}/startDB2.sh"
+fi
 
 # Start Solr
-"${scriptDir}/startSolr.sh"
+if [[ "$(directoryExists "${solrInstallDir}")" == "true" ]]; then
+    "${scriptDir}/startSolr.sh"
+fi
 
 # Start IHS
-"${scriptDir}/startIHS.sh"
+if [[ "$(directoryExists "${ihsInstallDir}")" == "true" ]]; then
+    "${scriptDir}/startIHS.sh"
+fi
 
 # Start WAS Deployment Manager
-"${scriptDir}/startDmgr.sh"
+if [[ "$(directoryExists "${wasDmgrProfile}")" == "true" ]]; then
+    "${scriptDir}/startDmgr.sh"
+fi
 
-# Start WAS nodeagents and application servers
-"${scriptDir}/startAppServers.sh"
+# Start WAS nodeagents
+if [[ "$(directoryExists "${wasInstallDir}")" == "true" ]]; then
+    "${scriptDir}/startNodeagents.sh"
+fi
+
+# Start WAS application servers
+if [[ "$(directoryExists "${wasInstallDir}")" == "true" ]]; then
+    "${scriptDir}/startAppServers.sh"
+fi
 
 # Stop Pink components
