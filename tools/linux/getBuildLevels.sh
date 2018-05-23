@@ -13,12 +13,6 @@ function init() {
     # Make sure this is a Deployment Manager node
     checkForDmgr
 
-    # Verify ictools.conf data is available
-    if [[ -z "${wasDmgrProfile}" || -z "${wasCellName}" ]]; then
-        log "The wasDmgrProfile and wasCellName variables must be set in /etc/ictools.conf"
-        exit 1
-    fi 
-
     notAvailable="${redText}Data missing from manifest${normalText}"
     # Add any apps to this list that you want to ignore. Generally, that means non-Connections apps
     excludes=(
