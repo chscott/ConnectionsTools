@@ -39,6 +39,12 @@ appCounter=0
 find "${wasDmgrProfile}/config/cells/${wasCellName}/applications" -name "MANIFEST.MF" -print0 | \
 while IFS= read -r -d '' file; do
 
+    # Reset loop variables
+    app=""
+    module=""
+    title=""
+    version=""
+
     # Get the app
     app=$(echo "${file}" | sed -n 's|.*applications\/\(.*\).ear\/deployments.*|\1|p')
 

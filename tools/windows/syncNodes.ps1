@@ -41,7 +41,7 @@ function offlineSync($profiles) {
 		log "Error: wasProfileRoot must be set to a valid directory in ictools.conf"
 	}
 	
-    ForEach ($profile In ${profiles}) {
+    foreach ($profile In ${profiles}) {
 		# Can only synchronize profiles of type BASE
 		if ($(isWASBaseProfile "${profile}") -eq "true") {
 			# If there is no servers directory or it has no subdirectories, skip this profile
