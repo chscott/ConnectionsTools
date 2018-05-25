@@ -29,6 +29,11 @@ if [[ "$(directoryExists "${ihsInstallDir}")" == "true" ]]; then
     "${scriptDir}/startIHS.sh"
 fi
 
+# Start IHS Admin
+if [[ "$(directoryExists "${ihsInstallDir}")" == "true" ]]; then
+    "${scriptDir}/startIHSAdmin.sh"
+fi
+
 # Start WAS Deployment Manager
 if [[ "$(directoryExists "${wasDmgrProfile}")" == "true" ]]; then
     "${scriptDir}/startDmgr.sh"

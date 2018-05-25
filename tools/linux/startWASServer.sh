@@ -31,7 +31,8 @@ function init() {
 
 init "${@}"
 
-if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
+# Only start servers that are in the cell but not of type webserver (since webservers aren't started the same way)
+if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" && "$(isWASWebserver "${server}" "${profile}")" == "false" ]]; then
     if [[ "$(isWASDmgrProfile "${profile}")" == "true" ]]; then
         startWASServer "${server}" "${wasProfileRoot}/${profile}"
     elif [[ "$(isWASBaseProfile "${profile}")" == "true" ]]; then
@@ -43,6 +44,8 @@ if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
             startWASServer "${server}" "${wasProfileRoot}/${profile}"
         fi
     fi
-else
+elif [[ "$(isServerInWASCell "${server}" "${profile}")" == "false" ]]; then
     log "Error: ${server} is not in WAS cell ${wasCellName}"
+elif [[ "$(isWASWebserver "${server}" "${profile}")" == "true" ]]; then
+    log "Error: ${server} is a webserver. Start IHS using startIHS.sh"
 fi

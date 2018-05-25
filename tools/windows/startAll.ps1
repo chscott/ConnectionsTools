@@ -17,6 +17,11 @@ if ($(directoryExists "${ihsInstallDir}") -eq "true") {
 	& "${PSScriptRoot}\startIHS.ps1"
 }
 
+# Start IHS Admin
+if ($(directoryExists "${ihsInstallDir}") -eq "true") {
+	& "${PSScriptRoot}\startIHSAdmin.ps1"
+}
+
 # Start WAS Deployment Manager
 if ($(directoryExists "${wasDmgrProfile}") -eq "true") {
 	& "${PSScriptRoot}\startDmgr.ps1"

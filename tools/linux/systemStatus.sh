@@ -20,6 +20,9 @@ getDB2ServerStatus
 # Check status for IHS
 getIHSServerStatus
 
+# Check status for IHS
+getIHSAdminServerStatus
+
 # Check status for Solr
 getSolrServerStatus
 
@@ -41,8 +44,8 @@ for profile in "${profiles[@]}"; do
         # Get an array of servers
         cd "${wasProfileRoot}/${profile}/servers" && servers=($(ls -d *)) 
         for server in "${servers[@]}"; do
-            if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
-                # The server is part of the cell, so go ahead and check its status
+            # Only check servers that are in the cell but not of type webserver (since webservers aren't checked the same way)
+            if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" && "$(isWASWebserver "${server}" "${profile}")" == "false" ]]; then
                 getWASServerStatus "${server}" "${wasProfileRoot}/${profile}"
             fi
         done

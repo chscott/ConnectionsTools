@@ -162,6 +162,20 @@ function isWASBaseProfile() {
 
 }
 
+# Determine if this server is a managed webserver
+function isWASWebserver() {
+
+    # Get all server.xml files in the cell, find the one for this server, and see if it's a webserver
+    if [[ $(find "${wasProfileRoot}/${profile}/config/cells/${wasCellName}/nodes" -name "server.xml" -print 2>/dev/null | \
+        grep "name=\""${server}"\"" | \
+        grep -c "xmi:type=\"webserver:WebServer\"") > 0 ]]; then
+        echo "true"
+    else
+        echo "false"
+    fi      
+
+}
+
 # Determine if a given server is part of the WAS cell
 function isServerInWASCell() {
 
@@ -313,7 +327,7 @@ function getIHSServerStatus() {
     printf "${left2Column}" "Server: IHS"
 
     # See if the server is running
-    ps -ef | grep "${ihsInstallDir}/bin/httpd" | grep -v "grep" >/dev/null 2>&1
+    ps -ef | grep "${ihsInstallDir}/bin/httpd" | grep -v "admin.conf" | grep -v "grep" >/dev/null 2>&1
 
     if [[ ${?} == 0 ]]; then
         # If we found a match, the server is started
@@ -337,7 +351,7 @@ function startIHSServer() {
     printf "${left2Column}" "Starting IHS server..."
 
     # Start the server
-    "${ihsInstallDir}/bin/apachectl" -k "start" >/dev/null 2>&1
+    "${ihsInstallDir}/bin/apachectl" "start" >/dev/null 2>&1
     
     # Check to see if server is started
     if [[ ${?} == 0 ]]; then
@@ -360,13 +374,88 @@ function stopIHSServer() {
     printf "${left2Column}" "Stopping IHS server..."
 
     # Stop the server
-    "${ihsInstallDir}/bin/apachectl" -k "stop" >/dev/null 2>&1
+    "${ihsInstallDir}/bin/apachectl" "stop" >/dev/null 2>&1
     
     # Wait a few seconds for process termination 
     sleep ${serviceDelaySeconds} 
 
     # Kill any remaining processes
-    ps -ef | grep "${ihsInstallDir}/bin" | grep -v "grep" | awk '{print $2}' | xargs -r kill -9 >/dev/null 2>&1
+    ps -ef | grep "${ihsInstallDir}/bin" | grep -v "admin.conf" | grep -v "grep" | awk '{print $2}' | xargs -r kill -9 >/dev/null 2>&1
+
+    # Check to see if server is stopped
+    if [[ ${?} == 0 ]]; then
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    else
+        printf "${right2Column}" "${redText}FAILURE${normalText}"
+    fi 
+
+}
+
+# Prints the status of the IHS admin server
+function getIHSAdminServerStatus() {
+
+    # If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
+    if [[ -z "${ihsInstallDir}" || ! -d "${ihsInstallDir}" ]]; then
+        return
+    fi
+
+    printf "${left2Column}" "Server: IHS Admin"
+
+    # See if the server is running
+    ps -ef | grep "${ihsInstallDir}/bin/httpd" | grep "admin.conf" | grep -v "grep" >/dev/null 2>&1
+
+    if [[ ${?} == 0 ]]; then
+        # If we found a match, the server is started
+        printf "${right2Column}" "${greenText}STARTED${normalText}"
+    else 
+        # If we did not find a match, the server is stopped
+        printf "${right2Column}" "${redText}STOPPED${normalText}"
+    fi
+
+}
+
+# Start IHS admin server
+function startIHSAdminServer() {
+
+    # If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
+    if [[ -z "${ihsInstallDir}" || ! -d "${ihsInstallDir}" ]]; then
+        log "IHS does not appear to be installed on this system. Exiting."
+        exit 0
+    fi
+
+    printf "${left2Column}" "Starting IHS Admin server..."
+
+    # Start the server
+    "${ihsInstallDir}/bin/adminctl" "start" >/dev/null 2>&1
+    
+    # Check to see if server is started
+    if [[ ${?} == 0 ]]; then
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    else
+        printf "${right2Column}" "${redText}FAILURE${normalText}"
+    fi 
+
+}
+
+# Stop IHS admin server
+function stopIHSAdminServer() {
+
+    # If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
+    if [[ -z "${ihsInstallDir}" || ! -d "${ihsInstallDir}" ]]; then
+        log "IHS does not appear to be installed on this system. Exiting."
+        exit 0
+    fi
+
+    printf "${left2Column}" "Stopping IHS Admin server..."
+
+    # Stop the server
+    "${ihsInstallDir}/bin/adminctl" "stop" >/dev/null 2>&1
+    
+    # Wait a few seconds for process termination 
+    sleep ${serviceDelaySeconds} 
+
+    # Kill any remaining processes
+    ps -ef | grep "${ihsInstallDir}/bin" | grep "admin.conf" | grep -v "grep" | awk '{print $2}' | xargs -r kill -9 >/dev/null 2>&1
 
     # Check to see if server is stopped
     if [[ ${?} == 0 ]]; then

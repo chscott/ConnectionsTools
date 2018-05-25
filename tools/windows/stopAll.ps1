@@ -22,6 +22,11 @@ if ($(directoryExists "${wasDmgrProfile}") -eq "true") {
 	& "${PSScriptRoot}\stopDmgr.ps1"
 }
 
+# Stop IHS Admin
+if ($(directoryExists "${ihsInstallDir}") -eq "true") {
+	& "${PSScriptRoot}\stopIHSAdmin.ps1"
+}
+
 # Stop IHS
 if ($(directoryExists "${ihsInstallDir}") -eq "true") {
 	& "${PSScriptRoot}\stopIHS.ps1"

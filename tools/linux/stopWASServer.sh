@@ -31,8 +31,11 @@ function init() {
 
 init "${@}"
 
-if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
+# Only stop servers that are in the cell but not of type webserver (since webservers aren't stopped the same way)
+if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" && "$(isWASWebserver "${server}" "${profile}")" == "false" ]]; then
     stopWASServer "${server}" "${wasProfileRoot}/${profile}"
-else
+elif [[ "$(isServerInWASCell "${server}" "${profile}")" == "false" ]]; then
     log "Error: ${server} is not in WAS cell ${wasCellName}"
+elif [[ "$(isWASWebserver "${server}" "${profile}")" == "true" ]]; then
+    log "Error: ${server} is a webserver. Start IHS using startIHS.sh"
 fi

@@ -28,8 +28,8 @@ foreach ($profile in ${profiles}) {
 			# Get an array of servers (not named "nodeagent")
             $servers=$(Get-ChildItem -Directory "${wasProfileRoot}\${profile}\servers" | Select-String -NotMatch -Pattern "nodeagent") 
             foreach ($server in ${servers}) {
-				if ($(isServerInWASCell "${server}" "${profile}") -eq "true") {
-					# The server is part of the cell, so go ahead and start it
+				# Only start servers that are in the cell but not of type webserver (since webservers aren't started the same way)
+				if (($(isServerInWASCell "${server}" "${profile}") -eq "true") -and ($(isWASWebserver "${server}" "${profile}") -eq "false")) {
 					startWASServer "${server}" "${wasProfileRoot}\${profile}"
 				}
 			}

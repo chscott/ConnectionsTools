@@ -21,8 +21,11 @@ while (${argsList}.Count -gt 0) {
 	${argsList}.RemoveRange(0,2)
 }
 
-if ($(isServerInWASCell "${server}" "${profile}") -eq "true") {
+# Only stop servers that are in the cell but not of type webserver (since webservers aren't stopped the same way)
+if (($(isServerInWASCell "${server}" "${profile}") -eq "true") -and ($(isWASWebserver "${server}" "${profile}") -eq "false")) {
 	stopWASServer "${server}" "${wasProfileRoot}\${profile}"
-} else {
+} elseif ($(isServerInWASCell "${server}" "${profile}") -eq "false") {
 	log "Error: ${server} is not in WAS cell ${wasCellName}"
+} elseif ($(isWASWebserver "${server}" "${profile}") -eq "true") {
+	log "Error: ${server} is a webserver. Start IHS using startIHS.ps1"
 }

@@ -144,23 +144,35 @@ function isWASBaseProfile($profile) {
 
 }
 
+# Determine if this server is a managed webserver
+function isWASWebserver($server, $profile) {
+
+	# Get all server.xml files in the cell, find the one for this server, and see if it's a webserver
+	if((Get-ChildItem -Path "${wasProfileRoot}\${profile}\config\cells\${wasCellName}\nodes" -Recurse -Include "server.xml" |
+		Select-String "name=""${server}""" |
+		Select-String -Quiet "xmi:type=""webserver:WebServer""")) {
+		return "true"
+	} else {
+		return "false"
+	}
+
+}
+
 # Determine if a given server is part of the WAS cell
 function isServerInWASCell($server, $profile) {
 
 	$isInCell="false"
-	$server
-	$profile
 		
 	# Build an array of servers known to this cell
 	$cellServers=$(
-		Get-ChildItem -Path "${wasProfileRoot}\${profile}\config\cells\${wasCellName}\nodes" -Recurse -Include serverindex.xml 2>${null} | 
+		Get-ChildItem -Path "${wasProfileRoot}\${profile}\config\cells\${wasCellName}\nodes" -Recurse -Include "serverindex.xml" 2>${null} | 
 		Select-String "serverName" |
 		ForEach-Object { 
 			$_.ToString().Split() | 
-			Select-String serverName | 
+			Select-String "serverName" | 
 			foreach { 
 				$_.Line.Split('=').Replace('"','') | 
-				Select-String -NotMatch serverName
+				Select-String -NotMatch "serverName"
 			}
 		}
 	) | Sort-Object -Unique
@@ -297,9 +309,12 @@ function getIHSServerStatus() {
 	}
 		
 	Write-Host -NoNewLine ("{0,${left2Column}}" -f "Server: IHS")
+	
+	# Set up our filter for finding IHS processes
+	$filter="Name='httpd.exe' AND CommandLine LIKE '%" + "${ihsConfigFile}" + "%'"
 
     # See if the server is running
-	if (Get-WmiObject Win32_Process -Filter "Name='httpd.exe'") {
+	if (Get-WmiObject Win32_Process -Filter "${filter}") {
 		# If we found a match, the server is started
         Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "STARTED")
 	} else {
@@ -319,12 +334,15 @@ function startIHSServer() {
     }
 
     Write-Host -NoNewLine ("{0,${left2Column}}" -f "Starting IHS server...")
-
-	# Stop the server
-    $status=$(& "${ihsInstallDir}\bin\apache.exe" -k "start" *>${null})
+	
+	# Set up our filter for finding IHS processes
+	$filter="Name='httpd.exe' AND CommandLine LIKE '%" + "${ihsConfigFile}" + "%'"
+	
+    # Start the server
+    $status=$(& "${ihsInstallDir}\bin\httpd.exe" -k "start" -n "${ihsServiceName}" *>${null})
     
 	# Check to see if server is started
-    if (Get-WmiObject Win32_Process -Filter "Name='httpd.exe'") {
+    if (Get-WmiObject Win32_Process -Filter "${filter}") {
         Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
     } else {
         Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
@@ -342,20 +360,127 @@ function stopIHSServer() {
     }
 
 	Write-Host -NoNewLine ("{0,${left2Column}}" -f "Stopping IHS server...")
-
-    # Stop the server
-    $status=$(& "${ihsInstallDir}\bin\apache.exe" -k "stop" *>${null})
+	
+	# Set up our filter for finding IHS processes
+	$filter="Name='httpd.exe' AND CommandLine LIKE '%" + "${ihsConfigFile}" + "%'"
+	
+	# Get the PID and PPID (PPID is the 'httpd.exe -k runservice' bootstrap process)
+	$ihsPid=$(Get-WmiObject Win32_Process -Filter "${filter}").ProcessId
+	$ihsPPid=$(Get-WmiObject Win32_Process -Filter "${filter}").ParentProcessId
+	
+    # Stop the server (should stop PID and PPID)
+    $status=$(& "${ihsInstallDir}\bin\httpd.exe" -k "stop" -n "${ihsServiceName}" *>${null})
 	    
     # Wait a few seconds for process termination 
     Start-Sleep -s ${serviceDelaySeconds} 
 
-    # Kill any remaining processes
-	if (Get-WmiObject Win32_Process -Filter "Name='httpd.exe'") {
-		Stop-Process -Name "httpd.exe" -Force
+    # See if there are any remaining processes
+	if (Get-WmiObject Win32_Process -Filter "${filter}") {
+		# Compare the PID and PPID to what we found before. If they are the same, kill them
+		if (((Get-WmiObject Win32_Process -Filter "${filter}").ProcessId) -eq ${ihsPid}) {
+			Stop-Process -ID ${ihsPid} -Force
+		}
+		if (((Get-WmiObject Win32_Process -Filter "${filter}").ParentProcessId) -eq ${ihsPPid}) {
+			Stop-Process -ID ${ihsPPid} -Force
+		}
 	}
 
-    # Check to see if server is stopped
-    if (Get-WmiObject Win32_Process -Filter "Name='httpd.exe'") {
+    # Check to see if there are still remaining processes. If no, it's a success. If yes, it's a failure
+    if (Get-WmiObject Win32_Process -Filter "${filter}") {
+        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
+    } else {
+        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+    }
+
+}
+
+# Prints the status of the IHS Admin server
+function getIHSAdminServerStatus() {
+
+	# If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
+	if (!"${ihsInstallDir}" -or !(Test-Path "${ihsInstallDir}")) {
+		return
+	}
+		
+	Write-Host -NoNewLine ("{0,${left2Column}}" -f "Server: IHS Admin")
+	
+	# Set up our filter for finding IHS Admin processes
+	$filter="Name='httpd.exe' AND CommandLine LIKE '%" + "${ihsAdminConfigFile}" + "%'"
+
+    # See if the server is running
+	if (Get-WmiObject Win32_Process -Filter "${filter}") {
+		# If we found a match, the server is started
+        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "STARTED")
+	} else {
+		# If we did not find a match, the server is stopped
+        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "STOPPED")
+	}
+
+}
+
+# Start IHS Admin server
+function startIHSAdminServer() {
+
+    # If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
+    if (!"${ihsInstallDir}" -or !(Test-Path "${ihsInstallDir}")) {
+        log "IHS does not appear to be installed on this system. Exiting."
+        exit 0
+    }
+
+    Write-Host -NoNewLine ("{0,${left2Column}}" -f "Starting IHS Admin server...")
+	
+	# Set up our filter for finding IHS Admin processes
+	$filter="Name='httpd.exe' AND CommandLine LIKE '%" + "${ihsAdminConfigFile}" + "%'"
+	
+    # Start the server
+    $status=$(& "${ihsInstallDir}\bin\httpd.exe" -k "start" -n "${ihsAdminServiceName}" *>${null})
+    
+	# Check to see if server is started
+    if (Get-WmiObject Win32_Process -Filter "${filter}") {
+        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+    } else {
+        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
+    }
+
+}
+
+# Stop IHS Admin server
+function stopIHSAdminServer() {
+
+    # If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
+    if (!"${ihsInstallDir}" -or !(Test-Path "${ihsInstallDir}")) {
+        log "IHS does not appear to be installed on this system. Exiting."
+        exit 0
+    }
+
+	Write-Host -NoNewLine ("{0,${left2Column}}" -f "Stopping IHS Admin server...")
+	
+	# Set up our filter for finding IHS processes
+	$filter="Name='httpd.exe' AND CommandLine LIKE '%" + "${ihsAdminConfigFile}" + "%'"
+	
+	# Get the PID and PPID (PPID is the 'httpd.exe -k runservice' bootstrap process)
+	$ihsAdminPid=$(Get-WmiObject Win32_Process -Filter "${filter}").ProcessId
+	$ihsAdminPPid=$(Get-WmiObject Win32_Process -Filter "${filter}").ParentProcessId
+	
+    # Stop the server (should stop PID and PPID)
+    $status=$(& "${ihsInstallDir}\bin\httpd.exe" -k "stop" -n "${ihsAdminServiceName}" *>${null})
+	    
+    # Wait a few seconds for process termination 
+    Start-Sleep -s ${serviceDelaySeconds} 
+
+    # See if there are any remaining processes
+	if (Get-WmiObject Win32_Process -Filter "${filter}") {
+		# Compare the PID and PPID to what we found before. If they are the same, kill them
+		if (((Get-WmiObject Win32_Process -Filter "${filter}").ProcessId) -eq ${ihsPid}) {
+			Stop-Process -ID ${ihsAdminPid} -Force
+		}
+		if (((Get-WmiObject Win32_Process -Filter "${filter}").ParentProcessId) -eq ${ihsPPid}) {
+			Stop-Process -ID ${ihsAdminPPid} -Force
+		}
+	}
+
+    # Check to see if there are still remaining processes. If no, it's a success. If yes, it's a failure
+    if (Get-WmiObject Win32_Process -Filter "${filter}") {
         Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
     } else {
         Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")

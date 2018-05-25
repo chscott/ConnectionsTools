@@ -13,6 +13,9 @@ getDB2ServerStatus
 # Check status for IHS
 getIHSServerStatus
 
+# Check status for IHS Admin
+getIHSAdminServerStatus
+
 # Check status for WAS servers
 
 # Build an array of WAS profiles
@@ -31,8 +34,8 @@ foreach ($profile in ${profiles}) {
 		# Get an array of servers
 		$servers=$(Get-ChildItem -Directory "${wasProfileRoot}\${profile}\servers")
 		foreach ($server in ${servers}) {
-			if ($(isServerInWASCell "${server}" "${profile}") -eq "true") {
-				# The server is part of the cell, so go ahead and check its status
+			# Only check servers that are in the cell but not of type webserver (since webservers aren't checked the same way)
+			if (($(isServerInWASCell "${server}" "${profile}") -eq "true") -and ($(isWASWebserver "${server}" "${profile}") -eq "false")) {
 				getWASServerStatus "${server}" "${wasProfileRoot}\${profile}"
 			}
 		}

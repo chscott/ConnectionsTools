@@ -35,8 +35,8 @@ for profile in "${profiles[@]}"; do
             # Get an array of servers (not named "nodeagent")
             cd "${wasProfileRoot}/${profile}/servers" && servers=($(ls -d * | grep -v "nodeagent")) 
             for server in "${servers[@]}"; do
-                if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" ]]; then
-                    # The server is part of the cell, so go ahead and start it
+                # Only start servers that are in the cell but not of type webserver (since webservers aren't started the same way)
+                if [[ "$(isServerInWASCell "${server}" "${profile}")" == "true" && "$(isWASWebserver "${server}" "${profile}")" == "false" ]]; then
                     startWASServer "${server}" "${wasProfileRoot}/${profile}"
                 fi
             done

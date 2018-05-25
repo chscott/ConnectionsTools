@@ -29,6 +29,11 @@ if [[ "$(directoryExists "${wasDmgrProfile}")" == "true" ]]; then
     "${scriptDir}/stopDmgr.sh"
 fi
 
+# Stop IHS Admin
+if [[ "$(directoryExists "${ihsInstallDir}")" == "true" ]]; then
+    "${scriptDir}/stopIHSAdmin.sh"
+fi
+
 # Stop IHS
 if [[ "$(directoryExists "${ihsInstallDir}")" == "true" ]]; then
     "${scriptDir}/stopIHS.sh"
