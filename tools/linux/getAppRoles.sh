@@ -19,6 +19,7 @@ function init() {
     # Variables
     local spacesPlusAlnum="[[:blank:]]+[[:alnum:]]"
     app="${1}"
+    padding="       "
     string=""
 
     string+="^Application:${spacesPlusAlnum}|"
@@ -30,7 +31,7 @@ function init() {
     string+="^All authenticated in trusted realms\?:${spacesPlusAlnum}|"
     string+="^Mapped users access ids:${spacesPlusAlnum}|"
     string+="^Mapped groups access ids:${spacesPlusAlnum}|"
-    string+="================================================================================"
+    string+="${separator}"
 
 }
 
@@ -38,9 +39,11 @@ init "${@}"
 
 if [[ -z "${app}" ]]; then
     # No app was specified, so get all apps
+    log "Getting role assignments for all applications. This make take some time)..."
     output=$("${scriptDir}/wsadmin.sh" "${scriptDir}/wsadmin/getAppRoles.py")
 else
     # Only get the specified app
+    log "Getting role assignments for the ${app} application..."
     output=$("${scriptDir}/wsadmin.sh" "${scriptDir}/wsadmin/getAppRoles.py" "${app}")
 fi
 
@@ -51,5 +54,5 @@ output=$(echo "${output}" | grep -E "${string}")
 if [[ $(echo "${output}" | wc -l) == 1 ]]; then
     log "$(echo ${output} | tr -d ':') does not exist"
 else
-    echo "${output}" | sed 's/\(^Everyone*\|^All authenticated*\|^Mapped*\)/       \1/g'
+    echo "${output}" | sed "s/\(^Everyone*\|^All authenticated*\|^Mapped*\)/${padding}\1/g"
 fi

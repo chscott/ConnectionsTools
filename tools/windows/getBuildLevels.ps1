@@ -11,19 +11,6 @@ checkForAdmin
 checkForDmgr
 
 $notAvailable="Data missing from manifest"
-# Add any apps to this list that you want to ignore. Generally, that means non-Connections apps
-$excludes=@(
-	#"commsvc",
-	#"DefaultApplication",
-	#"ibmasyncrsp",
-	#"isclite",
-	#"ivtApp",
-	#"OTiS",
-	#"query",
-	#"WebSphereOauth20SP",
-	#"WebSphereWSDM"
-	"foo"
-)
 
 # Keep track of the Apps as we are processing them
 $currentApp=""
@@ -49,9 +36,8 @@ Get-ChildItem -Recurse -Path "${wasDmgrProfile}\config\cells\${wasCellName}\appl
 			}
 		}
 				
-		# Check to see if the App is in the exclude array (skip if it is)
-		if (!"${app}" -or ${excludes} -contains "${app}") {
-			Write-Host "App is either null or on the exclude list"
+		# Check to see if the App is in the app exclude array (skip if it is)
+		if (!"${app}" -or ${appExcludes} -contains "${app}") {
 			return
 		}
 		
@@ -74,7 +60,7 @@ Get-ChildItem -Recurse -Path "${wasDmgrProfile}\config\cells\${wasCellName}\appl
 				
 		# Print the App name only if it's the first pass for that App
 		if (${appCounter} -eq 0) {
-			Write-Host ("{0,-10}{1,-10}`n" -f "App:", "${app}")
+			log ("{0,-10}{1,-10}" -f "App:", "${app}")
 		}
 		
 		# Get the title from the manifest
@@ -91,23 +77,23 @@ Get-ChildItem -Recurse -Path "${wasDmgrProfile}\config\cells\${wasCellName}\appl
 		
 		# Print the module name
 		if (!"${module}") {
-			Write-Host ("`n{0,-10}{1,-10}" -f "Module:", "${app}")
+			log ("`n{0,-10}{1,-10}" -f "Module:", "${app}")
 		} else {
-			Write-Host ("`n{0,-10}{1,-10}" -f "Module:", "${module}")
+			log ("`n{0,-10}{1,-10}" -f "Module:", "${module}")
 		}
 		
 		# Print the title 
 		if ("${title}" -eq "${notAvailable}") {
-			Write-Host -ForegroundColor Red ("{0,-10}{1,-10}" -f "Title:", "${title}")
+			log ("{0,-10}{1,-10}" -f "Title:", "${title}")
 		} else {
-			Write-Host ("{0,-10}{1,-10}" -f "Title:", "${title}")
+			log ("{0,-10}{1,-10}" -f "Title:", "${title}")
 		}
 		
 		# Print the version
 		if ("${version}" -eq "${notAvailable}") {
-			Write-Host -ForegroundColor Red ("{0,-10}{1,-10}" -f "Version:", "${version}")
+			log ("{0,-10}{1,-10}" -f "Version:", "${version}")
 		} else {
-			Write-Host ("{0,-10}{1,-10}" -f "Version:", "${version}")
+			log ("{0,-10}{1,-10}" -f "Version:", "${version}")
 		}
 		
 	}

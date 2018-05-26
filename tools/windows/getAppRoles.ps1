@@ -8,8 +8,9 @@ init
 checkForAdmin
 
 # Variables
-$spacesPlusAlnum="[[:blank:]]+[[:alnum:]]"
+$spacesPlusAlnum="\s+[\w\d]"
 $app=${args}[0]
+$padding="       "
 $string=""
 
 $string+="^Application:${spacesPlusAlnum}|"
@@ -21,15 +22,25 @@ $string+="^Mapped groups:${spacesPlusAlnum}|"
 $string+="^All authenticated in trusted realms\?:${spacesPlusAlnum}|"
 $string+="^Mapped users access ids:${spacesPlusAlnum}|"
 $string+="^Mapped groups access ids:${spacesPlusAlnum}|"
-$string+="================================================================================"
+$string+="${separator}"
 
 if (!"${app}") {
     # No app was specified, so get all apps
-	& "${PSScriptRoot}\wsadmin.ps1" "${PSScriptRoot}\wsadmin\getAppRoles.py"
-    #$output=$(& "${PSScriptRoot}\wsadmin.ps1" "${PSScriptRoot}\wsadmin\getAppRoles.py")
+	log "Getting role assignments for all applications. This may take some time..."
+    $output=$(& "${PSScriptRoot}\wsadmin.ps1" "${PSScriptRoot}\wsadmin\getAppRoles.py")
 } else {
     # Only get the specified app
-    $output=$(& "${PSScriptRoot}\wsadmin.p1" "${PSScriptRoot}\wsadmin\getAppRoles.py" "${app}")
+	log "Getting role assignments for the ${app} application..."
+    $output=$(& "${PSScriptRoot}\wsadmin.ps1" "${PSScriptRoot}\wsadmin\getAppRoles.py" "${app}")
 }
 
-Write-Host "${output}"
+# Extract only the relevant lines
+foreach ($line in ${output}) {
+	if ("${line}" -match "${string}") {
+		if ("${line}" -match "^Everyone|^All authenticated|^Mapped") {
+			log "${padding}${line}"
+		} else {
+			log "${line}"
+		}
+	}
+}

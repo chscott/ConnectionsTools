@@ -14,18 +14,6 @@ function init() {
     checkForDmgr
 
     notAvailable="${redText}Data missing from manifest${normalText}"
-    # Add any apps to this list that you want to ignore. Generally, that means non-Connections apps
-    excludes=(
-        "commsvc"
-        "DefaultApplication"
-        "ibmasyncrsp"
-        "isclite"
-        "ivtApp"
-        "OTiS"
-        "query"
-        "WebSphereOauth20SP"
-        "WebSphereWSDM"
-    )
 
 }
 
@@ -49,7 +37,7 @@ while IFS= read -r -d '' file; do
     app=$(echo "${file}" | sed -n 's|.*applications\/\(.*\).ear\/deployments.*|\1|p')
 
     # Check to see if the App is in the exclude array (skip if it is)
-    for exclude in "${excludes[@]}"; do
+    for exclude in "${appExcludes[@]}"; do
         if [[ "${exclude}" == "${app}" ]]; then
             continue 2
         fi

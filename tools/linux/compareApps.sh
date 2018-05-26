@@ -134,7 +134,7 @@ log "Comparing application files in profiles. This may take several minutes..."
 # Filter out any exclude apps (see /etc/ictools.conf)
 regexp=""
 firstIteration="true"
-for excludeApp in "${excludeCompareApps[@]}"; do
+for excludeApp in "${appExcludes[@]}"; do
     if [[ "${firstIteration}" == "true" ]]; then
         regexp="${excludeApp}"
         firstIteration="false"

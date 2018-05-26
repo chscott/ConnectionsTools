@@ -26,7 +26,7 @@ if (!"${string}") {
 			$file=${_}
 			$match=$(& "unzip.exe" -c "${file}" | Select-String "${string}")
 			if (${match}) {
-				Write-Host "${file}"
+				log "${file}"
 			}
 		}
 }
