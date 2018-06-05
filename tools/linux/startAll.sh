@@ -39,12 +39,7 @@ if [[ "$(directoryExists "${wasDmgrProfile}")" == "true" ]]; then
     "${scriptDir}/startDmgr.sh"
 fi
 
-# Start WAS nodeagents
-if [[ "$(directoryExists "${wasInstallDir}")" == "true" ]]; then
-    "${scriptDir}/startNodeagents.sh"
-fi
-
-# Start WAS application servers
+# Start WAS nodeagents and application servers
 if [[ "$(directoryExists "${wasInstallDir}")" == "true" ]]; then
     "${scriptDir}/startAppServers.sh"
 fi

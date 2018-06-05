@@ -27,12 +27,7 @@ if ($(directoryExists "${wasDmgrProfile}") -eq "true") {
 	& "${PSScriptRoot}\startDmgr.ps1"
 }
 
-# Start WAS nodeagents
-if ($(directoryExists "${wasInstallDir}") -eq "true") {
-	& "${PSScriptRoot}\startNodeagents.ps1"
-}
-
-# Start WAS application servers
+# Start WAS nodeagents and application servers
 if ($(directoryExists "${wasInstallDir}") -eq "true") {
 	& "${PSScriptRoot}\startAppServers.ps1"
 }

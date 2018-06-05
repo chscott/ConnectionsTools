@@ -1,5 +1,32 @@
 #!/bin/bash
 
+function usage() {
+
+    log "Usage: getAppLogs.sh --profile PROFILE [--app APP] [--duration DURATION]"
+    log ""
+    log "(Required) PROFILE is the name of a WebSphere profile"
+    log "(Optional) APP is any valid WebSphere application name"
+    log "(Optional) DURATION is an integer representing minutes of logging to retrieve or the special values 'today', 'lastHour' or 'monitor'"
+    log ""
+    log "Examples:"
+    log ""
+    log "Get all logs (equivalent to generating a full SystemOut.log or trace.log):"
+    log "$ sudo getAppLogs.sh --profile profile1"
+    log ""
+    log "Get all logs from today (i.e. since 12:00 AM):"
+    log "$ sudo getAppLogs.sh --profile profile1 --duration today"
+    log ""
+    log "Get logs for the News app from the last hour:"
+    log "$ sudo getAppLogs.sh --profile profile1 --app News --duration lastHour"
+    log ""
+    log "Get logs for the News app from the last 5 minutes:"
+    log "$ sudo getAppLogs.sh --profile profile1 --app News --duration 5"
+    log ""
+    log "Monitor logs for the News app:"
+    log "$ sudo getAppLogs.sh --profile profile1 --app News --duration monitor"
+
+}
+
 function init() {
 
     # Source prereqs
@@ -31,37 +58,11 @@ function init() {
                 duration="${value}"
                 shift;shift;;
             *)
-                log "Unrecognized argument ${value}"
-                shift;;
+                log "Unrecognized argument ${key}"
+                usage
+                exit 1
         esac
     done
-
-    function usage() {
-
-        log "Usage: getAppLogs.sh --profile PROFILE [--app APP] [--duration DURATION]"
-        log ""
-        log "(Required) PROFILE is the name of a WebSphere profile"
-        log "(Optional) APP is any valid WebSphere application name"
-        log "(Optional) DURATION is an integer representing minutes of logging to retrieve or the special values 'today', 'lastHour' or 'monitor'"
-        log ""
-        log "Examples:"
-        log ""
-        log "Get all logs (equivalent to generating a full SystemOut.log or trace.log):"
-        log "$ sudo getAppLogs.sh --profile profile1"
-        log ""
-        log "Get all logs from today (i.e. since 12:00 AM):"
-        log "$ sudo getAppLogs.sh --profile profile1 --duration today"
-        log ""
-        log "Get logs for the News app from the last hour:"
-        log "$ sudo getAppLogs.sh --profile profile1 --app News --duration lastHour"
-        log ""
-        log "Get logs for the News app from the last 5 minutes:"
-        log "$ sudo getAppLogs.sh --profile profile1 --app News --duration 5"
-        log ""
-        log "Monitor logs for the News app:"
-        log "$ sudo getAppLogs.sh --profile profile1 --app News --duration monitor"
-
-    }
 
     # Verify we have a profile
     if [[ -z "${profile}" ]]; then
@@ -76,7 +77,7 @@ function init() {
     fi 
 
     # Verify that HPEL logging is configured
-    if [[ $(find "${wasProfileRoot}/${profile}" -name "hpelRepository.owner" | wc -l) == 0 ]]; then
+    if [[ $(find "${wasProfileRoot}/${profile}/logs" -name "hpelRepository.owner" | wc -l) == 0 ]]; then
         log "HPEL logging is not enabled for this profile. Exiting."
         exit 1
     fi

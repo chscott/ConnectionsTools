@@ -2,32 +2,6 @@
 . C:\ProgramData\ConnectionsTools\ictools.ps1
 . (Join-Path "${PSScriptRoot}" utils.ps1)
 
-init
-
-# Make sure we're running as admin
-checkForAdmin
-
-# Verify ictools.conf data is available
-if (!"${wasProfileRoot}" -or !"${wasCellName}") {
-	log "The wasProfileRoot and wasCellName variables must be set in ictools.ps1"
-	exit 1
-}
-
-# Process the user arguments
-$argsList=New-Object System.Collections.ArrayList(,${args})
-$profile=$app=$duration=$null
-while (${argsList}.Count -gt 0) {
-	$key=${argsList}[0]
-	$value=${argsList}[1]
-	switch ("${key}") {
-		"--profile" { $profile="${value}" }
-		"--app" { $app="${value}" }
-		"--duration" { $duration="${value}" }
-		default { log "Unrecognized argument ${key}" }
-	}
-	${argsList}.RemoveRange(0,2)
-}
-
 function usage() {
 
     log "Usage: getAppLogs.sh --profile PROFILE [--app APP] [--duration DURATION]"
@@ -55,6 +29,36 @@ function usage() {
 
 }
 
+init
+
+# Make sure we're running as admin
+checkForAdmin
+
+# Verify ictools.conf data is available
+if (!"${wasProfileRoot}" -or !"${wasCellName}") {
+	log "The wasProfileRoot and wasCellName variables must be set in ictools.ps1"
+	exit 1
+}
+
+# Process the user arguments
+$argsList=New-Object System.Collections.ArrayList(,${args})
+$profile=$app=$duration=$null
+while (${argsList}.Count -gt 0) {
+	$key=${argsList}[0]
+	$value=${argsList}[1]
+	switch ("${key}") {
+		"--profile" { $profile="${value}" }
+		"--app" { $app="${value}" }
+		"--duration" { $duration="${value}" }
+		default { 
+			log "Unrecognized argument ${key}" 
+			usage
+			exit 1
+		}
+	}
+	${argsList}.RemoveRange(0,2)
+}
+
 # Verify we have a profile
 if (!"${profile}") {
 	usage
@@ -70,7 +74,7 @@ if ($(directoryExists "${wasProfileRoot}\${profile}") -ne "true") {
 }
 
 # Verify that HPEL logging is configured
-if ($((Get-ChildItem -Recurse "${wasProfileRoot}\${profile}" -Include "hpelRepository.owner" | Measure-Object).Count) -eq 0) {
+if ($((Get-ChildItem -Recurse "${wasProfileRoot}\${profile}\logs" -Include "hpelRepository.owner" | Measure-Object).Count) -eq 0) {
 	log "HPEL logging is not enabled for this profile. Exiting."
 	exit 1
 }
