@@ -7,12 +7,12 @@ problem determination.
 ### Syntax
 
 #### Linux
-```shell
+```
 $ sudo getAppLogs.sh --profile PROFILE [--app APP] [--duration DURATION]
 ```
 
 #### Windows
-```PowerShell
+```
 > getAppLogs.ps1 --profile PROFILE [--app APP] [--duration DURATION]
 ```
 
