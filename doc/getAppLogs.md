@@ -6,7 +6,7 @@ problem determination.
 
 ### Syntax
 
-#### Linux
+#### Shell
 ```bash
 $ sudo getAppLogs.sh --profile PROFILE [--app APP] [--duration DURATION]
 ```
