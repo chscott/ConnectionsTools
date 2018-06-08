@@ -37,9 +37,14 @@ function init() {
     # Make sure we're running as root
     checkForRoot
 
-    # Verify ictools.conf data is available
-    if [[ -z "${wasProfileRoot}" || -z "${wasCellName}" ]]; then
-        log "The wasProfileRoot and wasCellName variables must be set in /etc/ictools.conf"
+    # Verify prereqs
+    if [[ ! -d "${wasProfileRoot}" ]]; then
+        log "The wasProfileRoot variable must be set in /etc/ictools.conf to point to your WAS profile root directory (e.g. /opt/IBM/WebSphere/AppServer)"
+        exit 1
+    fi 
+    type -a date > /dev/null 2>&1
+    if [[ ${?} != 0 ]]; then
+        log "The date command is required to run this script"
         exit 1
     fi 
 
@@ -57,6 +62,9 @@ function init() {
             --duration)
                 duration="${value}"
                 shift;shift;;
+            --help)
+                usage
+                exit 0;;
             *)
                 log "Unrecognized argument ${key}"
                 usage
@@ -155,6 +163,6 @@ elif [[ "${duration}" =~ ^[0-9]+$ ]]; then
 
 # Invalid value
 else
-    log "Time duration must be an integer or the special value 'monitor'"
+    log "Time duration must be an integer or the special values 'monitor', 'lastHour', or 'today'"
     exit 1
 fi

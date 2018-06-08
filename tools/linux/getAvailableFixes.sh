@@ -42,7 +42,7 @@ installedFixes=($( \
 # See which fixes are available in the fixes directory
 availableFixes=($(
     "./updateSilent.sh" "-fix" "-installDir" "${icInstallDir}" "-fixDir" "${icFixesDir}" | \
-    grep -E "^\[[0-9]\]" | \
+    grep -E "^\[[0-9]*\]" | \
     awk '{print $2}' | \
     sort | \
     sed "N;s|\n| |" | \

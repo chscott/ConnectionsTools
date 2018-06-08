@@ -32,30 +32,30 @@ $installedFixes=$(${installedFixes} | Sort-Object)
 $availableFixes=@()
 $output=$(& ".\updateSilent.bat" "-fix" "-installDir" "${icInstallDir}" "-fixDir" "${icFixesDir}")
 foreach ($line in ${output}) {
-	if ("${line}" -match "^\[[0-9]\]") {
-		"${line}"
-		$availableFixes+=$(("${line}"))
+	if ("${line}" -match "^\[[0-9]*\]") {
+		$availableFixes+=$(("${line}" -split " ")[1] -replace ",","")
 	}
 }
-"${availableFixes}"
 
-exit 1
-
-log "Installed Connections fixes:"
-
-# For each installed fix, get details from the Connections efix files
-foreach ($fix in ${installedFixes}) {
-    $description=$(Get-Content "${icInstallDir}\version\${fix}.efix" | Select-String "short-description" | ForEach-Object { (("${_}" -split "=")[1]) -replace '[<>\"]','' })
-	$version=$(Get-Content "${icInstallDir}\version\${fix}.efix" | Select-String "build-version" | ForEach-Object { (("${_}" -split "=")[1]) -replace '[<>\"]','' })
-	$date=$(Get-Content "${icInstallDir}\version\${fix}.efix" | Select-String "build-date" | ForEach-Object { (("${_}" -split "=")[1]) -replace '[<>\"]','' })
-	log "${separator}"
-	Write-Host ("{0,-13}{1,-11}" -f "Fix ID:", "${fix}")
-	Write-Host ("{0,-13}{1,-11}" -f "Description:", "${description}")
-	Write-Host ("{0,-13}{1,-11}" -f "Version:", "${version}")
-	Write-Host ("{0,-13}{1,-11}" -f "Date:", "${date}")
+# Filter out the fixes that are both available and already installed. The remainder are the ones available to install
+$availableToInstallFixes=@()
+foreach ($availableFix in ${availableFixes}) {
+    $alreadyInstalled="false"
+    foreach ($installedFix in ${installedFixes}) {
+        if ("${installedFix}" -eq "${availableFix}") {
+            $alreadyInstalled="true" 
+        }
+    }
+    if ("${alreadyInstalled}" -eq "false") {
+		$availableToInstallFixes+="${availableFix}"
+    }
 }
 
-log "${separator}"
+if (${availableToInstallFixes}.Count -eq 0) {
+    log "There are no fixes available to install"
+} else {
+    log "Fixes available to install: ${availableToInstallFixes}"
+}
 
 # Return to the original directory
 Pop-Location -StackName ConnectionsTools

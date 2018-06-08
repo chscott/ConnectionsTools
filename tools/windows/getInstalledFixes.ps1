@@ -34,10 +34,10 @@ foreach ($fix in ${installedFixes}) {
 	$version=$(Get-Content "${icInstallDir}\version\${fix}.efix" | Select-String "build-version" | ForEach-Object { (("${_}" -split "=")[1]) -replace '[<>\"]','' })
 	$date=$(Get-Content "${icInstallDir}\version\${fix}.efix" | Select-String "build-date" | ForEach-Object { (("${_}" -split "=")[1]) -replace '[<>\"]','' })
 	log "${separator}"
-	Write-Host ("{0,-13}{1,-11}" -f "Fix ID:", "${fix}")
-	Write-Host ("{0,-13}{1,-11}" -f "Description:", "${description}")
-	Write-Host ("{0,-13}{1,-11}" -f "Version:", "${version}")
-	Write-Host ("{0,-13}{1,-11}" -f "Date:", "${date}")
+	"{0,-13}{1,-11}" -f "Fix ID:", "${fix}"
+	"{0,-13}{1,-11}" -f "Description:", "${description}"
+	"{0,-13}{1,-11}" -f "Version:", "${version}"
+	"{0,-13}{1,-11}" -f "Date:", "${date}"
 }
 
 log "${separator}"

@@ -6,8 +6,14 @@ problem determination.
 
 ### Syntax
 
-```Bash
+#### Linux
+```bash
 $ sudo getAppLogs.sh --profile PROFILE [--app APP] [--duration DURATION]
+```
+
+#### Windows
+```PowerShell
+> getAppLogs.ps1 --profile PROFILE [--app APP] [--duration DURATION]
 ```
 
 ### Options

@@ -31,7 +31,7 @@ function init() {
     # See if the Deployment Manager is available
     status=$(isDmgrAvailable)
     if [[ ${status} != 0 ]]; then
-        log "The Deployment Manager must be running to install fixes"
+        log "The Deployment Manager must be running to uninstall fixes"
         exit 1
     fi
 
@@ -46,7 +46,7 @@ printf "${left2Column}" "Uninstalling Connections fixes..."
 
 # Uninstall the fixes
 # The ${fixes} variable must be unquoted or entire string will be considered one fix
-"./updateSilent.sh" \
+output=$("./updateSilent.sh" \
     "-installDir" "${icInstallDir}" \
     "-fix" \
     "-uninstall" \
@@ -55,11 +55,18 @@ printf "${left2Column}" "Uninstalling Connections fixes..."
     "-featureCustomizationBackedUp" "yes" \
     "-wasUserId" "${wasAdmin}" \
     "-wasPassword" "${wasAdminPwd}" \
-    >/dev/null 2>&1
+    2>&1
+)
+
+# Extract the puiReturnCode
+status=$(echo "${output}" | grep "UpdateInstaller.puiReturnCode" | awk -F "UpdateInstaller.puiReturnCode is " '{print $2}')
 
 # Print status
-if [[ ${?} == 0 ]]; then
+if [[ ${status} == 0 ]]; then
     printf "${right2Column}" "${greenText}SUCCESS${normalText}"
 else
     printf "${right2Column}" "${redText}FAILURE${normalText}"
+    log ""
+    log "Failure log:"
+    log "${output}" 
 fi

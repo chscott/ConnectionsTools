@@ -4,7 +4,7 @@
 
 function usage() {
 
-    log "Usage: getAppLogs.sh --profile PROFILE [--app APP] [--duration DURATION]"
+    log "Usage: getAppLogs.ps1 --profile PROFILE [--app APP] [--duration DURATION]"
     log ""
     log "(Required) PROFILE is the name of a WebSphere profile"
     log "(Optional) APP is any valid WebSphere application name"
@@ -13,19 +13,19 @@ function usage() {
     log "Examples:"
     log ""
     log "Get all logs (equivalent to generating a full SystemOut.log or trace.log):"
-    log "$ sudo getAppLogs.sh --profile profile1"
+    log "> getAppLogs.ps1 --profile profile1"
     log ""
     log "Get all logs from today (i.e. since 12:00 AM):"
-    log "$ sudo getAppLogs.sh --profile profile1 --duration today"
+    log "> getAppLogs.ps1 --profile profile1 --duration today"
     log ""
     log "Get logs for the News app from the last hour:"
-    log "$ sudo getAppLogs.sh --profile profile1 --app News --duration lastHour"
+    log "> getAppLogs.ps1 --profile profile1 --app News --duration lastHour"
     log ""
     log "Get logs for the News app from the last 5 minutes:"
-    log "$ sudo getAppLogs.sh --profile profile1 --app News --duration 5"
+    log "> getAppLogs.ps1 --profile profile1 --app News --duration 5"
     log ""
     log "Monitor logs for the News app:"
-    log "$ sudo getAppLogs.sh --profile profile1 --app News --duration monitor"
+    log "> getAppLogs.ps1 --profile profile1 --app News --duration monitor"
 
 }
 
@@ -34,9 +34,9 @@ init
 # Make sure we're running as admin
 checkForAdmin
 
-# Verify ictools.conf data is available
-if (!"${wasProfileRoot}" -or !"${wasCellName}") {
-	log "The wasProfileRoot and wasCellName variables must be set in ictools.ps1"
+# Verify prereqs
+if (!"${wasProfileRoot}") {
+	log "The wasProfileRoot variable must be set in C:\ProgramData\ConnectionsTools\ictools.ps1 to point to your WAS profile root directory (e.g. C:\IBM\WebSphere\AppServer)"
 	exit 1
 }
 
@@ -50,6 +50,10 @@ while (${argsList}.Count -gt 0) {
 		"--profile" { $profile="${value}" }
 		"--app" { $app="${value}" }
 		"--duration" { $duration="${value}" }
+		"--help" {
+			usage
+			exit 0
+		}
 		default { 
 			log "Unrecognized argument ${key}" 
 			usage
@@ -152,6 +156,6 @@ elseif ("${duration}" -match "^[0-9]+$") {
 
 # Invalid value
 else {
-    log "Time duration must be an integer or the special value 'monitor'"
+    log "Time duration must be an integer or the special value 'monitor', 'lastHour', or 'today'"
     exit 1
 }
