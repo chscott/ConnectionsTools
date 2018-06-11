@@ -19,7 +19,7 @@ requirements. The default is --v1, which is the same as specifying no options.
 
 Get a list of all CFC v1 ports that are currently in use:
 
-```Bash
+```
 $ sudo checkCFCPorts.sh
 The following ports must be available but are already in use:
 80
@@ -30,7 +30,7 @@ The following ports must be available but are already in use:
 
 Get a list of all CFC v2 ports that are currently in use:
 
-```Bash
+```
 $ sudo checkCFCPorts.sh --v2
 The following ports must be available but are already in use:
 80

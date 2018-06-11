@@ -5,7 +5,7 @@ is provided as a header to the shell.
 
 ### Syntax
 
-```Bash
+```
 $ sudo connectToMongo.sh
 ```
 
@@ -15,7 +15,7 @@ None.
 
 ### Example
 
-```Bash
+```
 $ sudo connectToMongo.sh
 mongo-0 is not the master Mongo replica. Trying another...
 Common Mongo commands:

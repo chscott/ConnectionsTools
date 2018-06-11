@@ -4,8 +4,14 @@ Stops the named WAS server in the provided profile.
 
 ### Syntax
 
-```Bash
+#### Linux
+```
 $ sudo stopWASServer.sh --profile <PROFILE> --server <SERVER>
+```
+
+#### Windows
+```
+> stopWASServer.ps1 --profile <PROFILE> --server <SERVER>
 ```
 
 ### Options
@@ -18,14 +24,14 @@ Nodeagent, Application Server) can be specified.
 
 Stop the application server named server1 in the profile named profile1.
 
-```Bash
+```
 $ sudo stopWASServer.sh --profile profile1 --server server1
 Stopping server server1 in profile profile1...               SUCCESS
 ```
 
 Stop the nodeagent in the profile named profile1.
 
-```Bash
+```
 $ sudo stopWASServer.sh --profile profile1 --server nodeagent
 Stopping server nodeagent in profile profile1...             SUCCESS
 ```

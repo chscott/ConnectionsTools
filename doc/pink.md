@@ -7,6 +7,7 @@ for managing components like generic pods, MongoDB and Redis.
 - [connectToMongo](connectToMongo.md)
 - [connectToRedis](connectToRedis.md)
 - [getContainerID](getContainerID.md)
+- [getPinkEnv](getPinkEnv.md)
 - [getPodInfo](getPodInfo.md)
 - [getPodLogs](getPodLogs.md)
 - [getPodName](getPodName.md)

@@ -41,29 +41,29 @@ All examples assume a WAS profile named profile1.
 
 Get all available log entries. This is equivalent to generating a full SystemOut.log or trace.log.
 
-```Bash
+```
 $ sudo getAppLogs.sh --profile profile1
 ```
 
 Get all logs from today (i.e. since midnight of the current day).
 
-```Bash
+```
 $ sudo getAppLogs.sh --profile profile1 --duration today
 ```
 
 Get logs for the News application from the last hour.
 
-```Bash
+```
 $ sudo getAppLogs.sh --profile profile1 --app News --duration lastHour
 ```
 
 Get logs for the News application from the last five minutes.
 
-```Bash
+```
 $ sudo getAppLogs.sh --profile profile1 --app News --duration 5
 ```
 
 Stream logs for the News application in real time.
 
-```Bash
+```
 $ sudo getAppLogs.sh --profile profile1 --app News --duration monitor

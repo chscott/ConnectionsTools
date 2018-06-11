@@ -8,7 +8,7 @@ adjust the serviceDelaySeconds variable in /etc/ictools.conf to add more time.
 
 ### Syntax
 
-```Bash
+```
 $ sudo stopSolr.sh
 ```
 
@@ -18,7 +18,7 @@ None.
 
 ### Example
 
-```Bash
+```
 $ sudo stopSolr.sh
 Stopping Solr server...                                      SUCCESS
 ```

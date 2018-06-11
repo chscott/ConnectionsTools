@@ -5,8 +5,14 @@ identified, allowing you to quickly determine what actions need to be taken.
 
 ### Syntax
 
-```Bash
+#### Linux
+```
 $ sudo systemStatus.sh
+```
+
+#### Windows
+```
+> systemStatus.ps1
 ```
 
 ### Options
@@ -17,7 +23,7 @@ None.
 
 In this example, all systems are running, indicating a healthy node.
 
-```Bash
+```
 $ sudo systemStatus.sh
 Server: DB2                                                  STARTED
 Server: IHS                                                  STARTED
@@ -33,7 +39,7 @@ Server: nodeagent   Profile: ic2                             STARTED
 
 In this example, the Solr component is not running, indicating action must be taken by the administrator.
 
-```Bash
+```
 $ sudo systemStatus.sh
 Server: DB2                                                  STARTED
 Server: IHS                                                  STARTED

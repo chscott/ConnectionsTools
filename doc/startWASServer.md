@@ -4,8 +4,14 @@ Starts the named WAS server in the provided profile.
 
 ### Syntax
 
-```Bash
+#### Linux
+```
 $ sudo startWASServer.sh --profile <PROFILE> --server <SERVER>
+```
+
+#### Windows
+```
+> startWASServer.ps1 --profile <PROFILE> --server <SERVER>
 ```
 
 ### Options
@@ -19,14 +25,14 @@ corresponding nodeagent.
 
 Stop the nodeagent in the profile named profile1.
 
-```Bash
+```
 $ sudo startWASServer.sh --profile profile1 --server nodeagent
 Starting server nodeagent in profile profile1...             SUCCESS
 ```
 
 Start the application server named server1 in the profile named profile1.
 
-```Bash
+```
 $ sudo stopWASServer.sh --profile profile1 --server server1
 Starting server nodeagent in profile profile1...             SUCCESS
 Starting server server1 in profile profile1...               SUCCESS

@@ -3,8 +3,14 @@ The startDmgr command starts the WAS Deployment Manager on the current system.
 
 ### Syntax
 
-```Bash
+#### Linux
+```
 $ sudo startDmgr.sh
+```
+
+#### Windows
+```
+> startDmgr.ps1
 ```
 
 ### Options
@@ -13,7 +19,7 @@ None.
 
 ### Example
 
-```Bash
+```
 $ sudo startDmgr.sh
 Starting server dmgr in profile dmgr...                      SUCCESS
 ```

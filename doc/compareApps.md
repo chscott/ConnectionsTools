@@ -15,7 +15,7 @@ To compare individual EAR files instead of the expanded application files, see [
 
 ### Syntax
 
-```Bash
+```
 $ sudo compareApps.sh <Profile1> <Profile1> [--details]
 ```
 
@@ -28,7 +28,7 @@ reporting that the applications differ.
 
 The first example shows all applications in sync between profiles ic1 and ic2.
 
-```Bash
+```
 $ sudo compareApps.sh ic1 ic2 --details
 Comparing application files in profiles. This may take several minutes...
 No applications are out of sync
@@ -37,7 +37,7 @@ No applications are out of sync
 
 The second example shows three applications that are out of sync between profiles ic1 and ic2.
 
-```Bash
+```
 $ sudo compareApps.sh ic1 ic2
 Comparing application files in profiles. This may take several minutes...
 The following applications are out of sync:
@@ -48,7 +48,7 @@ Profiles.ear
 
 The third example uses the --details option to itemize the files that are out of sync.
 
-```Bash
+```
 $ sudo compareApps.sh ic1 ic2 --details
 Comparing application files in profiles. This may take several minutes...
 Files /var/IBM/websphere/was/profiles/ic1/installedApps/icCell/Common.ear/connections.web.resources.war/WEB-INF/eclipse/plugins/com.ibm.ic.core.web.resources_5.0.0.20171116-0701.jar and /var/IBM/websphere/was/profiles/ic2/installedApps/icCell/Common.ear/connections.web.resources.war/WEB-INF/eclipse/plugins/com.ibm.ic.core.web.resources_5.0.0.20171116-0701.jar differ

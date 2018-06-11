@@ -5,20 +5,27 @@ particular string.
 
 ### Syntax
 
-```Bash
-$ sudo jarscan.sh STRING
+#### Linux
+```
+$ sudo jarscan.sh [DIRECTORY] STRING
+```
+
+#### Windows
+```
+> jarscan.ps1 [DIRECTORY] STRING
 ```
 
 ### Options
 
-None.
+If provided, the DIRECTORY option specifies the directory from which the search for JARs begins. If not specified, the
+current directory is used.
 
 ### Example
 
 In the first example, a simple, one-word search term is used. We can see that the string 'CLFRW1124I' appears only once, in
 a file named search.common.jar inside the Search application.
 
-```Bash
+```
 $ sudo jarscan.sh CLFRW1124I
 Searching JARs in /var/IBM/websphere/was/profiles/ic1 for 'CLFRW1124I'...
 ./installedApps/icCell/Search.ear/search.common.jar
@@ -27,7 +34,7 @@ Searching JARs in /var/IBM/websphere/was/profiles/ic1 for 'CLFRW1124I'...
 In the second example, a phrase is used. Note that this must be enclosed in quotation marks to preserve the entire string to
 search.
 
-```Bash
+```
 $ sudo jarscan.sh "Search is starting to build the index"
 Searching JARs in /var/IBM/websphere/was/profiles/ic1 for 'Search is starting to build the index'...
 ./installedApps/icCell/Search.ear/search.common.jar

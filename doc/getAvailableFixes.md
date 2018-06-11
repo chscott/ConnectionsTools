@@ -6,16 +6,23 @@ environment.
 
 ### Syntax
 
-```Bash
+#### Linux
+```
 $ sudo getAvailableFixes.sh
 ```
+
+#### Windows
+```
+> getAvailableFixes.ps1
+```
+
 ### Options
 
 None.
 
 ### Example
 
-```Bash
+```
 $ sudo getAvailableFixes.sh
 Getting a list of Connections fixes available to install...
 Fixes available to install: LO93624

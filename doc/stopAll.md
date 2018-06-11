@@ -9,8 +9,14 @@ Stops all server components on the current system. Server components include the
 
 ### Syntax
 
-```Bash
+#### Linux
+```
 $ sudo stopAll.sh
+```
+
+#### Windows
+```
+> stopAll.ps1
 ```
 
 ### Options
@@ -19,7 +25,7 @@ None.
 
 ### Example
 
-```Bash
+```
 $ sudo stopAll.sh
 Stopping server cognos in profile cognos...                  SUCCESS
 Stopping server ic1 in profile ic1...                        SUCCESS

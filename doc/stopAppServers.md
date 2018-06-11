@@ -5,8 +5,14 @@ nodeagents are not affected.
 
 ### Syntax
 
-```Bash
+#### Linux
+```
 $ sudo stopAppServers.sh
+```
+
+#### Windows
+```
+> stopAppServers.ps1
 ```
 
 ### Options
@@ -14,7 +20,8 @@ $ sudo stopAppServers.sh
 None.
 
 ### Example
-```Bash
+
+```
 $ sudo stopAppServers.sh
 Stopping server cognos in profile cognos...                  SUCCESS
 Stopping server ic1 in profile ic1...                        SUCCESS

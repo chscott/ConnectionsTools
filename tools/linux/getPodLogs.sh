@@ -19,18 +19,23 @@ function init() {
     # Make sure this is a Kubernetes node
     checkForK8s
 
-    # Get the pod name (required)
+    # Get the pod name/type (required)
     if [[ -z "${1}" ]]; then
         usage
         exit 1
     else
         pod="${1}"
+        "${scriptDir}/getPodInfo.sh" --all | grep "${pod}" >/dev/null 2>&1
+        if [[ ${?} != 0 ]]; then
+            log "${pod} is not a valid pod name or type"
+            exit 1
+        fi
     fi
     
     # Get the mode (optional) 
     if [[ ! -z "${2}" ]]; then
         mode="${2}" 
-        if [[ "${mode}" != "--monitor" && "${mode}" != "--print" ]]; then
+        if [[ "${mode}" != "--monitor" && "${mode}" != "--monitorAll" && "${mode}" != "--print" && "${mode}" != "--printAll" ]]; then
             log "Unrecognized mode ${mode}. Printing logs..."
             mode="--print"
         fi
@@ -38,15 +43,7 @@ function init() {
 
 }
 
-init "${@}"
-
-# Get the logs
-if [[ "${mode}" == "--monitor" ]]; then
-    # Monitor mode (stream current logs to stdout)
-    "${kubectl}" logs --namespace "${icNamespace}" --follow "${pod}"
-else
-    # Non-monitor mode (print current logs to stdout)
-    "${kubectl}" logs --namespace "${icNamespace}" "${pod}"
+function getRotatedLogs() {
 
     # Get the container ID so we can see if there are rotated logs
     containerID="$("${scriptDir}/getContainerID.sh" "${pod}")"
@@ -63,4 +60,35 @@ else
         log "Current logs are printed above. No output means the logs have been rotated." 
         log "This pod's container exists on another node. Be sure to run this command there to check for rotated logs."
     fi
+
+}
+
+init "${@}"
+
+# Get the logs
+if [[ "${mode}" == "--monitor" ]]; then
+    # Monitor mode (stream current logs to stdout for specified pod)
+    "${kubectl}" logs --namespace "${icNamespace}" --timestamps=true --follow "${pod}"
+elif [[ "${mode}" == "--monitorAll" ]]; then
+    # Monitor all mode (stream current logs from all pods to stdout)
+    trap 'kill $(jobs -p)' EXIT
+    pods=($("${scriptDir}/getPodInfo.sh" --all | grep "${pod}" | awk '{print $1}')) 
+    for pod in "${pods[@]}"; do
+        log "Monitoring logs in pod ${pod}..."
+        "${kubectl}" logs --namespace "${icNamespace}" --timestamps=true --follow "${pod}" &
+    done
+    wait
+elif [[ "${mode}" == "--printAll" ]]; then
+    # Non-monitor mode (print current logs from all pods to stdout)
+    pods=($("${scriptDir}/getPodInfo.sh" --all | grep "${pod}" | awk '{print $1}')) 
+    for pod in "${pods[@]}"; do
+        log "Printing logs in pod ${pod}..."
+        "${kubectl}" logs --namespace "${icNamespace}" --timestamps=true "${pod}"
+        getRotatedLogs
+    done
+else
+    # Default: Non-monitor mode (print current logs to stdout for specified pod)
+    log "Printing logs in pod ${pod}"
+    "${kubectl}" logs --namespace "${icNamespace}" --timestamps=true "${pod}"
+    getRotatedLogs
 fi

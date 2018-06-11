@@ -5,8 +5,14 @@ Deployment Manager node's fixes directory and specify which you'd like to apply.
 
 ### Syntax
 
-```Bash
+#### Linux
+```
 $ sudo installFixes.sh fix1 [fix2] [fixN] ...
+```
+
+#### Windows
+```
+> installFixes.ps1 fix1 [fix2] [fixN] ...
 ```
 
 ### Options
@@ -18,7 +24,7 @@ None.
 This example first uses the [getAvailableFixes](getAvailableFixes.md) tool to identify fixes available to install and then
 uses installFixes to perform the installation.
 
-```Bash
+```
 $ sudo getAvailableFixes.sh
 Getting a list of Connections fixes available to install...
 Fixes available to install: LO93624

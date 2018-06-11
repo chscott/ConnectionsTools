@@ -4,16 +4,23 @@ The getInstalledFixes tool returns a formatted list of iFixes applied to your Co
 
 ### Syntax
 
-```Bash
+#### Linux
+```
 $ sudo getInstalledFixes.sh
 ```
+
+#### Windows
+```
+> getInstalledFixes.ps1
+```
+
 ### Options
 
 None.
 
 ### Example
 
-```Bash
+```
 $ sudo getInstalledFixes.sh
 Installed Connections fixes:
 ================================================================================

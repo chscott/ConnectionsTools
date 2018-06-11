@@ -3,8 +3,14 @@ The stopDmgr command stops the WAS Deployment Manager on the current system.
 
 ### Syntax
 
-```Bash
+#### Linux
+```
 $ sudo stopDmgr.sh
+```
+
+#### Windows
+```
+> stopDmgr.ps1
 ```
 
 ### Options
@@ -13,7 +19,7 @@ None.
 
 ### Example
 
-```Bash
+```
 $ sudo stopDmgr.sh
 Stopping server dmgr in profile dmgr...                      SUCCESS
 ```

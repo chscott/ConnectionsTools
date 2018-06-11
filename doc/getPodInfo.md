@@ -4,7 +4,7 @@ The getPodInfo tool is a wrapper around kubectl get pod that returns information
 
 ### Syntax
 
-```Bash
+```
 $ sudo getPodInfo.sh POD_NAME | --all [--wide | --json | --details]
 ```
 
@@ -20,7 +20,7 @@ You can optionally provide the format specification. The default specification i
 
 Get information about an orient-web-client pod.
 
-```Bash
+```
 $ pod=$(sudo getPodName.sh orient-web-client)
 $ sudo getPodInfo.sh $pod
 NAME                                READY     STATUS    RESTARTS   AGE
@@ -29,7 +29,7 @@ orient-web-client-701389332-gzkb1   1/1       Running   4          47d
 
 Get information about an orient-web-client pod in JSON format.
 
-```Bash
+```
 $ pod=$(sudo getPodName.sh orient-web-client)
 $ sudo getPodInfo.sh $pod --json
 {
@@ -46,7 +46,7 @@ $ sudo getPodInfo.sh $pod --json
 
 Get information about all pods.
 
-```Bash
+```
 $ sudo getPodInfo.sh --all
 NAME                                     READY     STATUS             RESTARTS   AGE
 analysisservice-1466752619-5t8gw         1/1       Running            0          47d
@@ -60,7 +60,7 @@ appregistry-client-1739368259-q11ch      1/1       Running            0         
 
 Get information about all pods in JSON format.
 
-```Bash
+```
 $ sudo getPodInfo.sh --all --json
 {
     "apiVersion": "v1",
@@ -91,7 +91,7 @@ $ sudo getPodInfo.sh --all --json
 
 Get detailed information about an orient-web-client pod.
 
-```Bash
+```
 $ pod=$(sudo getPodName.sh orient-web-client)
 $ sudo getPodInfo.sh $pod --details
 
