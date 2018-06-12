@@ -6,7 +6,7 @@ be used in other pod interactions.
 
 ### Syntax
 
-```
+```Shell
 $ sudo getPodName.sh POD_TYPE [POD_NUMBER]
 ```
 
@@ -21,7 +21,7 @@ different number.
 
 This example retrieves a reference to the first orient-web-client pod.
 
-```
+```Shell
 $ pod=$(sudo getPodName.sh orient-web-client)
 $ echo $pod
 orient-web-client-701389332-gzkb1
@@ -29,7 +29,7 @@ orient-web-client-701389332-gzkb1
 
 The second example illustrates retrieving a reference to each orient-web-client pod.
 
-```
+```Shell
 $ pod1=$(sudo getPodName.sh orient-web-client 1)
 $ pod2=$(sudo getPodName.sh orient-web-client 2)
 $ pod3=$(sudo getPodName.sh orient-web-client 3)

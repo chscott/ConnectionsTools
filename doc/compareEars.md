@@ -11,7 +11,7 @@ To compare all expanded application files instead of individual EAR files, see [
 
 ### Syntax
 
-```
+```Shell
 $ sudo compareEars.sh <EAR1> <EAR2> [--details]
 ```
 
@@ -26,24 +26,22 @@ determines the EAR files differ.
 The first example shows two EAR files that are the same. There would be no value in running the command again with the 
 --details option since we already know there are no differing files.
 
-```
+```Shell
 $ sudo compareEars.sh Common1.ear Common2.ear
 Common1.ear and Common2.ear are identical
-
 ```
 
 The second example shows two EAR files that differ. In this case, we may want to use the --details option to see the embedded
 files causing the EARs to be different.
 
-```
+```Shell
 $ sudo compareEars.sh Common1.ear Common3.ear
 Common1.ear and Common3.ear are different
-
 ```
 
 This example shows using the --details option to list the embedded files that differ.
 
-```
+```Shell
 $ sudo compareEars.sh ~/ic1/config/cells/icCell/applications/Common.ear/Common.ear ~/dmgr/config/cells/icCell/applications/Common.ear/Common.ear --details
 Expanding /tmp/Common1.ear into /tmp/expand_ear1...
 Expanding /tmp/Common2.ear into /tmp/expand_ear2...

@@ -7,12 +7,14 @@ problem determination.
 ### Syntax
 
 #### Linux
-```
+
+```Shell
 $ sudo getAppLogs.sh --profile PROFILE [--app APP] [--duration DURATION]
 ```
 
 #### Windows
-```
+
+```Shell
 > getAppLogs.ps1 --profile PROFILE [--app APP] [--duration DURATION]
 ```
 
@@ -41,29 +43,30 @@ All examples assume a WAS profile named profile1.
 
 Get all available log entries. This is equivalent to generating a full SystemOut.log or trace.log.
 
-```
+```Shell
 $ sudo getAppLogs.sh --profile profile1
 ```
 
 Get all logs from today (i.e. since midnight of the current day).
 
-```
+```Shell
 $ sudo getAppLogs.sh --profile profile1 --duration today
 ```
 
 Get logs for the News application from the last hour.
 
-```
+```Shell
 $ sudo getAppLogs.sh --profile profile1 --app News --duration lastHour
 ```
 
 Get logs for the News application from the last five minutes.
 
-```
+```Shell
 $ sudo getAppLogs.sh --profile profile1 --app News --duration 5
 ```
 
 Stream logs for the News application in real time.
 
-```
+```Shell
 $ sudo getAppLogs.sh --profile profile1 --app News --duration monitor
+```

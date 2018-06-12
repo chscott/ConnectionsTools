@@ -8,7 +8,7 @@ adjust the serviceDelaySeconds variable in /etc/ictools.conf to add more time.
 
 ### Syntax
 
-```
+```Shell
 $ sudo startSolr.sh
 ```
 
@@ -18,7 +18,7 @@ None.
 
 ### Example
 
-```
+```Shell
 $ sudo startSolr.sh
 Starting Solr server...                                      SUCCESS
 ```

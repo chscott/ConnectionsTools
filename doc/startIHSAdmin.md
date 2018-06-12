@@ -5,12 +5,14 @@ The startIHSAdmin tool starts the IBM HTTP Administration Server on the current 
 ### Syntax
 
 #### Linux
-```
+
+```Shell
 $ sudo startIHSAdmin.sh
 ```
 
 #### Windows
-```
+
+```Shell
 > startIHSAdmin.ps1
 ```
 
@@ -20,7 +22,7 @@ None.
 
 ### Example
 
-```
+```Shell
 $ sudo startIHSAdmin.sh
 Starting IHS Admin server...                                 SUCCESS
 ```

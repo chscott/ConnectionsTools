@@ -5,12 +5,14 @@ The getAppRoles tool returns all roles and role assignments bound to an applicat
 ### Syntax
 
 #### Linux
-```
+
+```Shell
 $ sudo getAppRoles.sh [APPLICATION]
 ```
 
 #### Windows
-```
+
+```Shell
 > getAppRoles.ps1 [APPLICATION]
 ```
 
@@ -23,7 +25,7 @@ application name is provided, only the roles and role assignments for that appli
 
 Get the roles and role assignments for all applications.
 
-```
+```Shell
 $ sudo getAppRoles.sh
 Application: Activities
 Role:  person
@@ -73,7 +75,8 @@ Role:  bss-provisioning-admin
 ```
 
 Get the roles and role assignments for the Profiles application.
-```
+
+```Shell
 $ sudo getAppRoles.sh Profiles
 Application: Profiles
 Role:  everyone

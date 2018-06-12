@@ -5,7 +5,7 @@ Connections Pink configuration.
 
 ### Syntax
 
-```
+```Shell
 $ sudo getPinkEnv.sh
 ```
 
@@ -15,7 +15,7 @@ None.
 
 ### Example
 
-```
+```Shell
 $ sudo getPinkEnv.sh $pod
 apiVersion: v1
 data:
@@ -24,3 +24,4 @@ data:
   communties-db-name: SNCOMM
   communties-db-port: "50000"
 ...
+```

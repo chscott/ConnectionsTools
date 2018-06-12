@@ -5,7 +5,7 @@ provided. Additionally, the tool provides the location of rotated logs when run 
 
 ### Syntax
 
-```
+```Shell
 $ sudo getPodLogs.sh [POD_NAME | POD_TYPE] [--print | --printAll | --monitor | --monitorAll]
 ```
 
@@ -22,7 +22,7 @@ When run in these modes, getPodLogs will either print or stream the logs for all
 Print the logs for the first orient-web-client pod. Note that the command is run on a Connections Pink node that is not the
 one hosting the pod. Notice that no rotated logs are listed.
 
-```
+```Shell
 $ pod=$(sudo getPodName.sh orient-web-client 1)
 $ sudo getPodLogs.sh $pod 
 2018-04-24T20:55:05.146Z - error: [auth-service] setJWT failed with err: [no_auth_token]: no_auth_token
@@ -33,7 +33,7 @@ This pod's container exists on another node. Be sure to run this command there t
 This is the same example as above except that the command is run on the Connections Pink node hosting the pod. Notice that
 the location of rotated logs is provided.
 
-```
+```Shell
 $ pod=$(sudo getPodName.sh orient-web-client 1)
 $ sudo getPodLogs.sh $pod 
 2018-04-24T20:59:35.145Z - error: [auth-service] setJWT failed with err: [no_auth_token]: no_auth_token
@@ -46,7 +46,7 @@ The following rotated logs are available in /var/lib/docker/containers/55c4e8a84
 
 Print the logs for all orient-web-client pods. The output for the individual pods is marked.
 
-```
+```Shell
 $ sudo getPodLogs.sh middleware-graphql --printAll
 Printing logs in pod middleware-graphql-3459494-1328w...
 Current logs are printed above. No output means the logs have been rotated.
@@ -69,19 +69,18 @@ The following rotated logs are available in /var/lib/docker/containers/9a4695384
 
 In this example, the logs of the first orient-web-client are followed in real time.
 
-```
+```Shell
 $ pod=$(sudo getPodName.sh orient-web-client 1)
 $ sudo getPodLogs.sh $pod --monitor
 2018-04-24T21:00:45.146Z - error: [auth-service] setJWT failed with err: [no_auth_token]: no_auth_token
 2018-04-24T21:00:55.143Z - error: [auth-service] setJWT failed with err: [no_auth_token]: no_auth_token
 2018-04-24T21:01:05.144Z - error: [auth-service] setJWT failed with err: [no_auth_token]: no_auth_token
-
 ```
 
 Monitor the logs for all orient-web-client pods in real time. Note that output lines for individual pods are not marked in
 this mode.
 
-```
+```Shell
 $ sudo getPodLogs.sh orient-web-client --monitorAll | more
 Monitoring logs in pod orient-web-client-701389332-gzkb1...
 Monitoring logs in pod orient-web-client-701389332-q3x2s...

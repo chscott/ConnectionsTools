@@ -6,12 +6,14 @@ identified, allowing you to quickly determine what actions need to be taken.
 ### Syntax
 
 #### Linux
-```
+
+```Shell
 $ sudo systemStatus.sh
 ```
 
 #### Windows
-```
+
+```Shell
 > systemStatus.ps1
 ```
 
@@ -23,7 +25,7 @@ None.
 
 In this example, all systems are running, indicating a healthy node.
 
-```
+```Shell
 $ sudo systemStatus.sh
 Server: DB2                                                  STARTED
 Server: IHS                                                  STARTED
@@ -39,7 +41,7 @@ Server: nodeagent   Profile: ic2                             STARTED
 
 In this example, the Solr component is not running, indicating action must be taken by the administrator.
 
-```
+```Shell
 $ sudo systemStatus.sh
 Server: DB2                                                  STARTED
 Server: IHS                                                  STARTED

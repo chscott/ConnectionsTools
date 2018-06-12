@@ -10,12 +10,14 @@ Starts all server components on the current system. Server components include th
 ### Syntax
 
 #### Linux
-```
+
+```Shell
 $ sudo startAll.sh
 ```
 
 #### Windows
-```
+
+```Shell
 > startAll.ps1
 ```
 
@@ -25,7 +27,7 @@ None.
 
 ### Example
 
-```
+```Shell
 $ sudo startAll.sh
 Starting DB2...                                              SUCCESS
 Starting Solr server...                                      SUCCESS

@@ -9,12 +9,14 @@ adjust the serviceDelaySeconds variable in /etc/ictools.conf to add more time.
 ### Syntax
 
 #### Linux
-```
+
+```Shell
 $ sudo stopIHSAdmin.sh
 ```
 
 #### Windows
-```
+
+```Shell
 > stopIHSAdmin.ps1
 ```
 
@@ -24,7 +26,7 @@ None.
 
 ### Example
 
-```
+```Shell
 $ sudo stopIHSAdmin.sh
 Stopping IHS Admin server...                                 SUCCESS
 ```

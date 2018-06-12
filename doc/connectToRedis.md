@@ -5,7 +5,7 @@ provided as a header to the shell.
 
 ### Syntax
 
-```
+```Shell
 $ sudo connectToRedis.sh
 ```
 
@@ -15,7 +15,7 @@ None.
 
 ### Example
 
-```
+```Shell
 $ sudo connectToRedis.sh
 Connecting to redis-server-0...
 Common Redis commands:

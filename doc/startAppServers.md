@@ -6,12 +6,14 @@ nodeagents are not affected.
 ### Syntax
 
 #### Linux
-```
+
+```Shell
 $ sudo startAppServers.sh
 ```
 
 #### Windows
-```
+
+```Shell
 > startAppServers.ps1
 ```
 
@@ -20,7 +22,8 @@ $ sudo startAppServers.sh
 None.
 
 ### Example
-```
+
+```Shell
 $ sudo startAppServers.sh
 Starting server cognos in profile cognos...                  SUCCESS
 Starting server ic1 in profile ic1...                        SUCCESS

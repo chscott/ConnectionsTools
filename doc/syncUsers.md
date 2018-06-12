@@ -5,12 +5,14 @@ The syncUsers tool is a simple wrapper around the TDI sync_all_dns.sh tool, whic
 ### Syntax
 
 #### Linux
-```
+
+```Shell
 $ sudo syncUsers.sh
 ```
 
 #### Windows
-```
+
+```Shell
 > syncUsers.ps1
 ```
 
@@ -20,7 +22,7 @@ None.
 
 ### Example
 
-```
+```Shell
 $ sudo syncUsers.sh
 Synchronizing Profiles with LDAP...                          SUCCESS
 ```

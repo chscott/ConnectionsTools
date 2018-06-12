@@ -7,12 +7,14 @@ environment.
 ### Syntax
 
 #### Linux
-```
+
+```Shell
 $ sudo getAvailableFixes.sh
 ```
 
 #### Windows
-```
+
+```Shell
 > getAvailableFixes.ps1
 ```
 
@@ -22,7 +24,7 @@ None.
 
 ### Example
 
-```
+```Shell
 $ sudo getAvailableFixes.sh
 Getting a list of Connections fixes available to install...
 Fixes available to install: LO93624

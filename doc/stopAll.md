@@ -10,12 +10,14 @@ Stops all server components on the current system. Server components include the
 ### Syntax
 
 #### Linux
-```
+
+```Shell
 $ sudo stopAll.sh
 ```
 
 #### Windows
-```
+
+```Shell
 > stopAll.ps1
 ```
 
@@ -25,7 +27,7 @@ None.
 
 ### Example
 
-```
+```Shell
 $ sudo stopAll.sh
 Stopping server cognos in profile cognos...                  SUCCESS
 Stopping server ic1 in profile ic1...                        SUCCESS

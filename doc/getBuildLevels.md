@@ -8,12 +8,14 @@ script. A default set of non-Connenctions applications is preconfigured. No repo
 ### Syntax
 
 #### Linux
-```
+
+```Shell
 $ sudo getBuildLevels.sh
 ```
 
 #### Windows
-```
+
+```Shell
 > getBuildLevels.ps1
 ```
 
@@ -23,7 +25,7 @@ None.
 
 ### Example
 
-```
+```Shell
 $ sudo getBuildLevels.sh
 ...
 ================================================================================

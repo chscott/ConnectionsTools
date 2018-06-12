@@ -6,12 +6,14 @@ If no options are provided, an online sync is performed.
 ### Syntax
 
 #### Linux
-```
+
+```Shell
 $ sudo syncNodes.sh [--offline]
 ```
 
 #### Windows
-```
+
+```Shell
 > syncNodes.ps1 [--offline]
 ```
 
@@ -27,7 +29,7 @@ You can use the [stopNodeagents](stopNodeagents.md) tool to stop any active node
 
 Run an online sync of all active nodes in the cell.
 
-```
+```Shell
 $ sudo syncNodes.sh
 Synchronizing active nodes...
 cognosNode                                                   SUCCESS
@@ -37,7 +39,7 @@ ic2Node                                                      SUCCESS
 
 Run an offline sync of all nodes on the current system. In this case, all nodeagents are stopped.
 
-```
+```Shell
 $ sudo syncNodes.sh --offline
 Synchronizing servers in cognos profile...                   SUCCESS
 Synchronizing servers in ic1 profile...                      SUCCESS
@@ -46,7 +48,7 @@ Synchronizing servers in ic2 profile...                      SUCCESS
 
 Run an offline sync of all nodes on the current system. In this case, all nodeagents are running.
 
-```
+```Shell
 $ sudo syncNodes.sh --offline
 Synchronizing servers in cognos profile...                   FAILURE (At least one server is still running)
 Synchronizing servers in ic1 profile...                      FAILURE (At least one server is still running)

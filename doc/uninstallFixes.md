@@ -6,12 +6,14 @@ installed fixes you'd like to remove.
 ### Syntax
 
 #### Linux
-```
+
+```Shell
 $ sudo uninstallFixes.sh fix1 [fix2] [fixN] ...
 ```
 
 #### Windows
-```
+
+```Shell
 > uninstallFixes.ps1 fix1 [fix2] [fixN] ...
 ```
 
@@ -21,7 +23,7 @@ None.
 
 ### Example
 
-```
+```Shell
 $ sudo getInstalledFixes.sh
 Installed Connections fixes:
 ================================================================================
