@@ -167,7 +167,7 @@ function isWASWebserver() {
 
     # Get all server.xml files in the cell, find the one for this server, and see if it's a webserver
     if [[ $(find "${wasProfileRoot}/${profile}/config/cells/${wasCellName}/nodes" -name "server.xml" -print 2>/dev/null | \
-        grep "name=\""${server}"\"" | \
+        xargs grep "name=\""${server}"\"" | \
         grep -c "xmi:type=\"webserver:WebServer\"") > 0 ]]; then
         echo "true"
     else
@@ -242,24 +242,18 @@ function getWASServerStatus() {
     fi
 
     # This approach is much faster than using serverStatus.sh and unlikely to yield false positives
-    ps -ef | grep -v "grep" | grep "${profile}" | awk '{print $NF}' | grep "${server}" >/dev/null 2>&1
-
-    if [[ ${?} == 0 ]]; then
+    if [[ $(ps -ef | grep -v "grep" | grep "${profile}" | awk '{print $NF}' | grep -c "${server}") > 0 ]]; then 
         # If we found a match, the server is started
         if [[ "${noDisplay}" == "true" ]]; then
-            # Return status
             echo "STARTED"
         else
-            # Display status 
             printf "${right2Column}" "${greenText}STARTED${normalText}"
         fi
     else 
         # If we did not find a match, the server is stopped
         if [[ "${noDisplay}" == "true" ]]; then
-            # Return status
             echo "STOPPED"
         else
-            # Display status 
             printf "${right2Column}" "${redText}STOPPED${normalText}"
         fi
     fi
@@ -279,14 +273,17 @@ function startWASServer() {
 
     printf "${left2Column}" "Starting server ${server} in profile ${profileBasename}..."
 
-    # Get the result of the startServer.sh command
-    local status="$("${profile}/bin/startServer.sh" "${server}")"
-
-    # Check to see if server is started
-    if [[ "${status}" =~ "ADMU3027E" || "${status}" =~ "ADMU3000I" ]]; then
-        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    if [[ "$(getWASServerStatus "${server}" "${profile}" "true")" == "STOPPED" ]]; then
+        # If the server is stopped, start it
+        local status="$("${profile}/bin/startServer.sh" "${server}")"
+        if [[ "${status}" =~ "ADMU3027E" || "${status}" =~ "ADMU3000I" ]]; then
+            printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+        else
+            printf "${right2Column}" "${redText}FAILURE${normalText}"
+        fi
     else
-        printf "${right2Column}" "${redText}FAILURE${normalText}"
+        # The server is already started, so report success
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
     fi
 
 }
@@ -304,14 +301,17 @@ function stopWASServer() {
 
     printf "${left2Column}" "Stopping server ${server} in profile ${profileBasename}..."
 
-    # Get the result of the stopServer.sh command
-    local status="$("${profile}/bin/stopServer.sh" "${server}" -username "${wasAdmin}" -password "${wasAdminPwd}")"
-
-    # Check to see if server is stopped
-    if [[ "${status}" =~ "ADMU0509I" || "${status}" =~ "ADMU4000I" ]]; then
-        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    if [[ "$(getWASServerStatus "${server}" "${profile}" "true")" == "STARTED" ]]; then
+        # If the server is started, stop it
+        local status="$("${profile}/bin/stopServer.sh" "${server}" -username "${wasAdmin}" -password "${wasAdminPwd}")"
+        if [[ "${status}" =~ "ADMU0509I" || "${status}" =~ "ADMU4000I" ]]; then
+            printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+        else
+            printf "${right2Column}" "${redText}FAILURE${normalText}"
+        fi
     else
-        printf "${right2Column}" "${redText}FAILURE${normalText}"
+        # The server is already stopped, so report success
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
     fi
 
 }

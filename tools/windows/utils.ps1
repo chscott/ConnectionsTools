@@ -237,19 +237,15 @@ function getWASServerStatus($server, $profile, $noDisplay) {
 		}) {
 		# If we found a match, the server is started
 		if ("${noDisplay}" -eq "true") {
-			# Return status
 			return "STARTED"
 		} else {
-			# Display status
 			Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "STARTED")
 		}
 	} else {
 		# If we did not find a match, the server is stopped
 		if ("${noDisplay}" -eq "true") {
-			# Return status
 			return "STOPPED"
 		} else {
-			# Display status
 			Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "STOPPED")
 		}
 	}
@@ -266,15 +262,18 @@ function startWASServer($server, $profile) {
 
     Write-Host -NoNewLine ("{0,${left2Column}}" -f "Starting server ${server} in profile ${profileBasename}...")
 
-    # Get the result of the startServer.bat command
-	$status=$(& "${profile}\bin\startServer.bat" "${server}" *>&1)
-
-    # Check to see if server is started
-    if ("${status}" -like "*ADMU3027E*" -or "${status}" -like "*ADMU3000I*") {
-        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
-    } else {
-        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
-    }
+	if ($(getWASServerStatus "${server}" "${profile}" "true") -eq "STOPPED") {
+    # If the server is stopped, start it
+		$status=$(& "${profile}\bin\startServer.bat" "${server}" *>&1)
+		if ("${status}" -like "*ADMU3027E*" -or "${status}" -like "*ADMU3000I*") {
+			Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+		} else {
+			Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
+		}
+	} else {
+		# The server is already started, so report success
+		Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+	}
 
 }
 
@@ -288,15 +287,18 @@ function stopWASServer($server, $profile) {
 
     Write-Host -NoNewLine ("{0,${left2Column}}" -f "Stopping server ${server} in profile ${profileBasename}...")
 
-    # Get the result of the startServer.bat command
-	$status=$(& "${profile}\bin\stopServer.bat" "${server}" -username "${wasAdmin}" -password "${wasAdminPwd}" *>&1)
-	
-	# Check to see if server is stopped
-    if ("${status}" -like "*ADMU0509I*" -or "${status}" -like "*ADMU4000I*") {
-        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
-    } else {
-        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
-    }
+	if ($(getWASServerStatus "${server}" "${profile}" "true") -eq "STARTED") {
+		# If the server is started, stop it
+		$status=$(& "${profile}\bin\stopServer.bat" "${server}" -username "${wasAdmin}" -password "${wasAdminPwd}" *>&1)
+		if ("${status}" -like "*ADMU0509I*" -or "${status}" -like "*ADMU4000I*") {
+			Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+		} else {
+			Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
+		}
+	} else {
+		# The server is already stopped, so report success
+		Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+	}
 
 }
 
