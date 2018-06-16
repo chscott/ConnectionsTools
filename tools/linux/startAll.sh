@@ -24,6 +24,11 @@ if [[ "$(directoryExists "${solrInstallDir}")" == "true" ]]; then
     "${scriptDir}/startSolr.sh"
 fi
 
+# Start NGINX
+if [[ "${nginxProxy}" == "true" ]]; then
+    "${scriptDir}/startNGINX.sh"
+fi
+
 # Start IHS
 if [[ "$(directoryExists "${ihsInstallDir}")" == "true" ]]; then
     "${scriptDir}/startIHS.sh"

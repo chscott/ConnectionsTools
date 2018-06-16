@@ -263,7 +263,7 @@ function startWASServer($server, $profile) {
     Write-Host -NoNewLine ("{0,${left2Column}}" -f "Starting server ${server} in profile ${profileBasename}...")
 
 	if ($(getWASServerStatus "${server}" "${profile}" "true") -eq "STOPPED") {
-    # If the server is stopped, start it
+		# If the server is stopped, start it
 		$status=$(& "${profile}\bin\startServer.bat" "${server}" *>&1)
 		if ("${status}" -like "*ADMU3027E*" -or "${status}" -like "*ADMU3000I*") {
 			Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
@@ -303,14 +303,18 @@ function stopWASServer($server, $profile) {
 }
 
 # Prints the status of the IHS server
-function getIHSServerStatus() {
+# $noDisplay: (Optional) boolean (true returns the result via subshell, any other value prints to display)
+function getIHSServerStatus($noDisplay) {
 
 	# If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
 	if (!"${ihsInstallDir}" -or !(Test-Path "${ihsInstallDir}")) {
 		return
 	}
-		
-	Write-Host -NoNewLine ("{0,${left2Column}}" -f "Server: IHS")
+	
+	# Only print info if noDisplay is not true
+	if ("${noDisplay}" -ne "true") {
+		Write-Host -NoNewLine ("{0,${left2Column}}" -f "Server: IHS")
+	}
 	
 	# Set up our filter for finding IHS processes
 	$filter="Name='httpd.exe' AND CommandLine LIKE '%" + "${ihsConfigFile}" + "%'"
@@ -318,10 +322,18 @@ function getIHSServerStatus() {
     # See if the server is running
 	if (Get-WmiObject Win32_Process -Filter "${filter}") {
 		# If we found a match, the server is started
-        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "STARTED")
+		if ("${noDisplay}" -eq "true") {
+			return "STARTED"
+		} else {
+			Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "STARTED")
+		}
 	} else {
 		# If we did not find a match, the server is stopped
-        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "STOPPED")
+		if ("${noDisplay}" -eq "true") {
+			return "STOPPED"
+		} else {
+			Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "STOPPED")
+		}
 	}
 
 }
@@ -340,16 +352,20 @@ function startIHSServer() {
 	# Set up our filter for finding IHS processes
 	$filter="Name='httpd.exe' AND CommandLine LIKE '%" + "${ihsConfigFile}" + "%'"
 	
-    # Start the server
-    $status=$(& "${ihsInstallDir}\bin\httpd.exe" -k "start" -n "${ihsServiceName}" *>${null})
-    
-	# Check to see if server is started
-    if (Get-WmiObject Win32_Process -Filter "${filter}") {
-        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
-    } else {
-        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
-    }
-
+	if ($(getIHSServerStatus "true") -eq "STOPPED") {
+		# If the server is stopped, start it
+		$status=$(& "${ihsInstallDir}\bin\httpd.exe" -k "start" -n "${ihsServiceName}" *>${null})
+		# Check to see if server is started
+		if ($(getIHSServerStatus "true") -eq "STARTED") {
+			Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+		} else {
+			Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
+		}
+	} else {
+		# The server is already started, so report success
+		Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+	}
+	
 }
 
 # Stop IHS server
@@ -370,41 +386,47 @@ function stopIHSServer() {
 	$ihsPid=$(Get-WmiObject Win32_Process -Filter "${filter}").ProcessId
 	$ihsPPid=$(Get-WmiObject Win32_Process -Filter "${filter}").ParentProcessId
 	
-    # Stop the server (should stop PID and PPID)
-    $status=$(& "${ihsInstallDir}\bin\httpd.exe" -k "stop" -n "${ihsServiceName}" *>${null})
-	    
-    # Wait a few seconds for process termination 
-    Start-Sleep -s ${serviceDelaySeconds} 
-
-    # See if there are any remaining processes
-	if (Get-WmiObject Win32_Process -Filter "${filter}") {
-		# Compare the PID and PPID to what we found before. If they are the same, kill them
-		if (((Get-WmiObject Win32_Process -Filter "${filter}").ProcessId) -eq ${ihsPid}) {
-			Stop-Process -ID ${ihsPid} -Force
+	if ($(getIHSServerStatus "true") -eq "STARTED") {
+		# If the server is started, stop it (PID and PPID)
+		$status=$(& "${ihsInstallDir}\bin\httpd.exe" -k "stop" -n "${ihsServiceName}" *>${null})   
+		# Wait a few seconds for process termination 
+		Start-Sleep -s ${serviceDelaySeconds} 
+		# See if there are any remaining processes
+		if (Get-WmiObject Win32_Process -Filter "${filter}") {
+			# Compare the PID and PPID to what we found before. If they are the same, kill them
+			if (((Get-WmiObject Win32_Process -Filter "${filter}").ProcessId) -eq ${ihsPid}) {
+				Stop-Process -ID ${ihsPid} -Force
+			}
+			if (((Get-WmiObject Win32_Process -Filter "${filter}").ParentProcessId) -eq ${ihsPPid}) {
+				Stop-Process -ID ${ihsPPid} -Force
+			}
 		}
-		if (((Get-WmiObject Win32_Process -Filter "${filter}").ParentProcessId) -eq ${ihsPPid}) {
-			Stop-Process -ID ${ihsPPid} -Force
+		# Check to see if the server is stopped
+		if ($(getIHSServerStatus "true") -eq "STOPPED") {
+			Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+		} else {
+			Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
 		}
+	} else {
+		# The server is already stopped, so report success
+		Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
 	}
-
-    # Check to see if there are still remaining processes. If no, it's a success. If yes, it's a failure
-    if (Get-WmiObject Win32_Process -Filter "${filter}") {
-        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
-    } else {
-        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
-    }
 
 }
 
 # Prints the status of the IHS Admin server
-function getIHSAdminServerStatus() {
+# $noDisplay: (Optional) boolean (true returns the result via subshell, any other value prints to display)
+function getIHSAdminServerStatus($noDisplay) {
 
 	# If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
 	if (!"${ihsInstallDir}" -or !(Test-Path "${ihsInstallDir}")) {
 		return
 	}
 		
-	Write-Host -NoNewLine ("{0,${left2Column}}" -f "Server: IHS Admin")
+	# Only print info if noDisplay is not true
+	if ("${noDisplay}" -ne "true") {
+		Write-Host -NoNewLine ("{0,${left2Column}}" -f "Server: IHS Admin")
+	}
 	
 	# Set up our filter for finding IHS Admin processes
 	$filter="Name='httpd.exe' AND CommandLine LIKE '%" + "${ihsAdminConfigFile}" + "%'"
@@ -412,10 +434,18 @@ function getIHSAdminServerStatus() {
     # See if the server is running
 	if (Get-WmiObject Win32_Process -Filter "${filter}") {
 		# If we found a match, the server is started
-        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "STARTED")
+		if ("${noDisplay}" -eq "true") {
+			return "STARTED"
+		} else {
+			Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "STARTED")
+		}
 	} else {
 		# If we did not find a match, the server is stopped
-        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "STOPPED")
+		if ("${noDisplay}" -eq "true") {
+			return "STOPPED"
+		} else {
+			Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "STOPPED")
+		}
 	}
 
 }
@@ -434,15 +464,19 @@ function startIHSAdminServer() {
 	# Set up our filter for finding IHS Admin processes
 	$filter="Name='httpd.exe' AND CommandLine LIKE '%" + "${ihsAdminConfigFile}" + "%'"
 	
-    # Start the server
-    $status=$(& "${ihsInstallDir}\bin\httpd.exe" -k "start" -n "${ihsAdminServiceName}" *>${null})
-    
-	# Check to see if server is started
-    if (Get-WmiObject Win32_Process -Filter "${filter}") {
-        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
-    } else {
-        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
-    }
+	if ($(getIHSAdminServerStatus "true") -eq "STOPPED") {
+		# If the server is stopped, start it
+		$status=$(& "${ihsInstallDir}\bin\httpd.exe" -k "start" -n "${ihsAdminServiceName}" *>${null})
+		# Check to see if server is started
+		if ($(getIHSAdminServerStatus "true") -eq "STARTED") {
+			Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+		} else {
+			Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
+		}
+	} else {
+		# The server is already started, so report success
+		Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+	}
 
 }
 
@@ -464,49 +498,63 @@ function stopIHSAdminServer() {
 	$ihsAdminPid=$(Get-WmiObject Win32_Process -Filter "${filter}").ProcessId
 	$ihsAdminPPid=$(Get-WmiObject Win32_Process -Filter "${filter}").ParentProcessId
 	
-    # Stop the server (should stop PID and PPID)
-    $status=$(& "${ihsInstallDir}\bin\httpd.exe" -k "stop" -n "${ihsAdminServiceName}" *>${null})
-	    
-    # Wait a few seconds for process termination 
-    Start-Sleep -s ${serviceDelaySeconds} 
-
-    # See if there are any remaining processes
-	if (Get-WmiObject Win32_Process -Filter "${filter}") {
-		# Compare the PID and PPID to what we found before. If they are the same, kill them
-		if (((Get-WmiObject Win32_Process -Filter "${filter}").ProcessId) -eq ${ihsPid}) {
-			Stop-Process -ID ${ihsAdminPid} -Force
+	if ($(getIHSAdminServerStatus "true") -eq "STARTED") {
+		# If the server is started, stop it (PID and PPID)
+		$status=$(& "${ihsInstallDir}\bin\httpd.exe" -k "stop" -n "${ihsAdminServiceName}" *>${null})
+		# Wait a few seconds for process termination 
+		Start-Sleep -s ${serviceDelaySeconds} 
+		# See if there are any remaining processes
+		if (Get-WmiObject Win32_Process -Filter "${filter}") {
+			# Compare the PID and PPID to what we found before. If they are the same, kill them
+			if (((Get-WmiObject Win32_Process -Filter "${filter}").ProcessId) -eq ${ihsPid}) {
+				Stop-Process -ID ${ihsAdminPid} -Force
+			}
+			if (((Get-WmiObject Win32_Process -Filter "${filter}").ParentProcessId) -eq ${ihsPPid}) {
+				Stop-Process -ID ${ihsAdminPPid} -Force
+			}
 		}
-		if (((Get-WmiObject Win32_Process -Filter "${filter}").ParentProcessId) -eq ${ihsPPid}) {
-			Stop-Process -ID ${ihsAdminPPid} -Force
+		# Check to see if the server is stopped
+		if ($(getIHSAdminServerStatus "true") -eq "STOPPED") {
+			Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+		} else {
+			Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
 		}
-	}
-
-    # Check to see if there are still remaining processes. If no, it's a success. If yes, it's a failure
-    if (Get-WmiObject Win32_Process -Filter "${filter}") {
-        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
     } else {
-        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+		# The server is already stopped, so report success
+		Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
     }
 
 }
 
 # Prints the status of the DB2 server
-function getDB2ServerStatus() {
+# $noDisplay: (Optional) boolean (true returns the result via subshell, any other value prints to display)
+function getDB2ServerStatus($noDisplay) {
 
     # If no DB2 installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
 	if (!"${db2InstallDir}" -or !(Test-Path "${db2InstallDir}")) {
         return
     }
 	
-	Write-Host -NoNewLine ("{0,${left2Column}}" -f "Server: DB2")
+	# Only print info if noDisplay is not true
+	if ("${noDisplay}" -ne "true") {
+		Write-Host -NoNewLine ("{0,${left2Column}}" -f "Server: DB2")
+	}
 
     # See if the server is running
 	if (Get-WmiObject Win32_Process -Filter "Name='db2sysc.exe' OR Name='db2syscs.exe'") {
 		# If we found a match, the server is started
-        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "STARTED")
+		if ("${noDisplay}" -eq "true") {
+			return "STARTED"
+		} else {
+			Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "STARTED")
+		}
 	} else {
 		# If we did not find a match, the server is stopped
-        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "STOPPED")
+		if ("${noDisplay}" -eq "true") {
+			return "STOPPED"
+		} else {
+			Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "STOPPED")
+		}
 	}
 
 }
@@ -522,15 +570,18 @@ function startDB2Server() {
 
 	Write-Host -NoNewLine ("{0,${left2Column}}" -f "Starting DB2...")
 
-	$status=$(& "${db2InstallDir}\bin\db2start.exe" *>&1)
-
-    if ("${status}" -like "*SQL1063N*" -or "${status}" -like "*SQL1026N*") {
-        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
-	} elseif ("${status}" -like "*SQL1025N*") {
-		Write-Host -NoNewLine -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
-		Write-Host " (active connections)"
+	if ($(getDB2ServerStatus "true") -eq "STOPPED") {
+		# If the server is stopped, start it
+		$status=$(& "${db2InstallDir}\bin\db2start.exe" *>&1)
+		# Check to see if the server is started
+		if ($(getDB2ServerStatus "true") -eq "STARTED") {
+			Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+		} else {
+			Write-Host -NoNewLine -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
+		}
     } else {
-        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE") 
+		# The server is already started, so report success
+        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS") 
     }
 
 }
@@ -546,13 +597,21 @@ function stopDB2Server() {
 
     Write-Host -NoNewLine ("{0,${left2Column}}" -f "Stopping DB2...")
 
-    $status=$(& "${db2InstallDir}\bin\db2stop.exe" *>&1)
-	
-	if ("${status}" -like "*SQL1064N*" -or "${status}" -like "*SQL1032N*") {
-        Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
-    } else {
-        Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE") 
-    }
+	if ($(getDB2ServerStatus "true") -eq "STARTED") {
+		# If the server is started, stop it
+		$status=$(& "${db2InstallDir}\bin\db2stop.exe" *>&1)
+		if ("${status}" -like "*SQL1064N*" -or "${status}" -like "*SQL1032N*") {
+			Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+		} elseif ("${status}" -like "*SQL1025N*") {
+			Write-Host -NoNewLine -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE")
+			Write-Host " (active connections)"
+		} else {
+			Write-Host -ForegroundColor Red ("{0,${right2Column}}" -f "FAILURE") 
+		}
+	} else {
+		# The server is already stopped, so report success
+		Write-Host -ForegroundColor Green ("{0,${right2Column}}" -f "SUCCESS")
+	}
 
 }
 

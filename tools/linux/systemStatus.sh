@@ -23,6 +23,9 @@ getIHSServerStatus
 # Check status for IHS
 getIHSAdminServerStatus
 
+# Check status for NGINX
+getNGINXServerStatus
+
 # Check status for Solr
 getSolrServerStatus
 

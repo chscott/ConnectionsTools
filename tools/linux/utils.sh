@@ -317,24 +317,36 @@ function stopWASServer() {
 }
 
 # Prints the status of the IHS server
+# $1: (Optional) boolean (true returns the result via subshell, any other value prints to display)
 function getIHSServerStatus() {
+
+    local noDisplay="${1}"
 
     # If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
     if [[ -z "${ihsInstallDir}" || ! -d "${ihsInstallDir}" ]]; then
         return
     fi
 
-    printf "${left2Column}" "Server: IHS"
+    # Only print info if noDisplay is not true
+    if [[ "${noDisplay}" != "true" ]]; then
+        printf "${left2Column}" "Server: IHS"
+    fi
 
     # See if the server is running
-    ps -ef | grep "${ihsInstallDir}/bin/httpd" | grep -v "admin.conf" | grep -v "grep" >/dev/null 2>&1
-
-    if [[ ${?} == 0 ]]; then
+    if [[ $(ps -ef | grep "${ihsInstallDir}/bin/httpd" | grep -v "grep" | grep -c -v "admin.conf") > 0 ]]; then
         # If we found a match, the server is started
-        printf "${right2Column}" "${greenText}STARTED${normalText}"
+        if [[ "${noDisplay}" == "true" ]]; then
+            echo "STARTED"
+        else
+            printf "${right2Column}" "${greenText}STARTED${normalText}"
+        fi
     else 
         # If we did not find a match, the server is stopped
-        printf "${right2Column}" "${redText}STOPPED${normalText}"
+        if [[ "${noDisplay}" == "true" ]]; then
+            echo "STOPPED"
+        else
+            printf "${right2Column}" "${redText}STOPPED${normalText}"
+        fi
     fi
 
 }
@@ -350,15 +362,19 @@ function startIHSServer() {
 
     printf "${left2Column}" "Starting IHS server..."
 
-    # Start the server
-    "${ihsInstallDir}/bin/apachectl" "start" >/dev/null 2>&1
-    
-    # Check to see if server is started
-    if [[ ${?} == 0 ]]; then
-        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    if [[ "$(getIHSServerStatus "true")" == "STOPPED" ]]; then
+        # If the server is stopped, start it 
+        "${ihsInstallDir}/bin/apachectl" "start" >/dev/null 2>&1
+        # Check to see if the server is started
+        if [[ "$(getIHSServerStatus "true")" == "STARTED" ]]; then
+            printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+        else
+            printf "${right2Column}" "${redText}FAILURE${normalText}"
+        fi 
     else
-        printf "${right2Column}" "${redText}FAILURE${normalText}"
-    fi 
+        # The server is already started, so report success
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    fi
 
 }
 
@@ -373,43 +389,57 @@ function stopIHSServer() {
 
     printf "${left2Column}" "Stopping IHS server..."
 
-    # Stop the server
-    "${ihsInstallDir}/bin/apachectl" "stop" >/dev/null 2>&1
-    
-    # Wait a few seconds for process termination 
-    sleep ${serviceDelaySeconds} 
-
-    # Kill any remaining processes
-    ps -ef | grep "${ihsInstallDir}/bin" | grep -v "admin.conf" | grep -v "grep" | awk '{print $2}' | xargs -r kill -9 >/dev/null 2>&1
-
-    # Check to see if server is stopped
-    if [[ ${?} == 0 ]]; then
-        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    if [[ "$(getIHSServerStatus "true")" == "STARTED" ]]; then
+        # If the server is started, stop it
+        "${ihsInstallDir}/bin/apachectl" "stop" >/dev/null 2>&1
+        # Wait a few seconds for process termination 
+        sleep ${serviceDelaySeconds} 
+        # Kill any remaining processes
+        ps -ef | grep "${ihsInstallDir}/bin" | grep -v "admin.conf" | grep -v "grep" | awk '{print $2}' | xargs -r kill -9 >/dev/null 2>&1
+        # Check to see if server is stopped
+        if [[ "$(getIHSServerStatus "true")" == "STOPPED" ]]; then
+            printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+        else
+            printf "${right2Column}" "${redText}FAILURE${normalText}"
+        fi 
     else
-        printf "${right2Column}" "${redText}FAILURE${normalText}"
-    fi 
+        # The server is already stopped, so report success
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    fi
 
 }
 
 # Prints the status of the IHS admin server
+# $1: (Optional) boolean (true returns the result via subshell, any other value prints to display)
 function getIHSAdminServerStatus() {
+
+    local noDisplay="${1}"
 
     # If no IHS installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
     if [[ -z "${ihsInstallDir}" || ! -d "${ihsInstallDir}" ]]; then
         return
     fi
 
-    printf "${left2Column}" "Server: IHS Admin"
+    # Only print info if noDisplay is not true
+    if [[ "${noDisplay}" != "true" ]]; then
+        printf "${left2Column}" "Server: IHS Admin"
+    fi
 
     # See if the server is running
-    ps -ef | grep "${ihsInstallDir}/bin/httpd" | grep "admin.conf" | grep -v "grep" >/dev/null 2>&1
-
-    if [[ ${?} == 0 ]]; then
+    if [[ $(ps -ef | grep "${ihsInstallDir}/bin/httpd" | grep -v "grep" | grep -c "admin.conf") > 0 ]]; then
         # If we found a match, the server is started
-        printf "${right2Column}" "${greenText}STARTED${normalText}"
+        if [[ "${noDisplay}" == "true" ]]; then
+            echo "STARTED"
+        else
+            printf "${right2Column}" "${greenText}STARTED${normalText}"
+        fi
     else 
         # If we did not find a match, the server is stopped
-        printf "${right2Column}" "${redText}STOPPED${normalText}"
+        if [[ "${noDisplay}" == "true" ]]; then
+            echo "STOPPED"
+        else
+            printf "${right2Column}" "${redText}STOPPED${normalText}"
+        fi
     fi
 
 }
@@ -424,17 +454,21 @@ function startIHSAdminServer() {
     fi
 
     printf "${left2Column}" "Starting IHS Admin server..."
-
-    # Start the server
-    "${ihsInstallDir}/bin/adminctl" "start" >/dev/null 2>&1
     
-    # Check to see if server is started
-    if [[ ${?} == 0 ]]; then
-        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    if [[ "$(getIHSAdminServerStatus "true")" == "STOPPED" ]]; then
+        # If the server is stopped, start it 
+        "${ihsInstallDir}/bin/adminctl" "start" >/dev/null 2>&1
+        # Check to see if server is started
+        if [[ "$(getIHSAdminServerStatus "true")" == "STARTED" ]]; then
+            printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+        else
+            printf "${right2Column}" "${redText}FAILURE${normalText}"
+        fi 
     else
-        printf "${right2Column}" "${redText}FAILURE${normalText}"
-    fi 
-
+        # The server is already started, so report success
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    fi
+ 
 }
 
 # Stop IHS admin server
@@ -448,43 +482,151 @@ function stopIHSAdminServer() {
 
     printf "${left2Column}" "Stopping IHS Admin server..."
 
-    # Stop the server
-    "${ihsInstallDir}/bin/adminctl" "stop" >/dev/null 2>&1
-    
-    # Wait a few seconds for process termination 
-    sleep ${serviceDelaySeconds} 
-
-    # Kill any remaining processes
-    ps -ef | grep "${ihsInstallDir}/bin" | grep "admin.conf" | grep -v "grep" | awk '{print $2}' | xargs -r kill -9 >/dev/null 2>&1
-
-    # Check to see if server is stopped
-    if [[ ${?} == 0 ]]; then
-        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    if [[ "$(getIHSAdminServerStatus "true")" == "STARTED" ]]; then
+        # If the server is started, stop it
+        "${ihsInstallDir}/bin/adminctl" "stop" >/dev/null 2>&1
+        # Wait a few seconds for process termination 
+        sleep ${serviceDelaySeconds} 
+        # Kill any remaining processes
+        ps -ef | grep "${ihsInstallDir}/bin" | grep "admin.conf" | grep -v "grep" | awk '{print $2}' | xargs -r kill -9 >/dev/null 2>&1
+        # Check to see if server is stopped
+        if [[ "$(getIHSAdminServerStatus "true")" == "STOPPED" ]]; then
+            printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+        else
+            printf "${right2Column}" "${redText}FAILURE${normalText}"
+        fi 
     else
-        printf "${right2Column}" "${redText}FAILURE${normalText}"
-    fi 
+        # The server is already stopped, so report success
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    fi
+
+}
+
+# Prints the status of the NGINX server
+# $1: (Optional) boolean (true returns the result via subshell, any other value prints to display)
+function getNGINXServerStatus() {
+
+    local noDisplay="${1}"
+
+    # If the NGINX binary doesn't exist, do nothing 
+    local nginx="$(which nginx)"
+    if [[ ${?} != 0 ]]; then
+        return
+    fi
+
+    # Only print info if noDisplay is not true
+    if [[ "${noDisplay}" != "true" ]]; then
+        printf "${left2Column}" "Server: NGINX"
+    fi
+
+    # See if the server is running
+    if [[ $(ps -ef | grep -v "grep" | grep -c "nginx") > 0 ]]; then
+        # If we found a match, the server is started
+        if [[ "${noDisplay}" == "true" ]]; then
+            echo "STARTED"
+        else
+            printf "${right2Column}" "${greenText}STARTED${normalText}"
+        fi
+    else 
+        # If we did not find a match, the server is stopped
+        if [[ "${noDisplay}" == "true" ]]; then
+            echo "STOPPED"
+        else
+            printf "${right2Column}" "${redText}STOPPED${normalText}"
+        fi
+    fi
+
+}
+
+# Start NGINX server
+function startNGINXServer() {
+
+    # If the NGINX binary doesn't exist, do nothing 
+    local nginx="$(which nginx)"
+    if [[ ${?} != 0 ]]; then
+        return
+    fi
+
+    printf "${left2Column}" "Starting NGINX server..."
+
+    if [[ "$(getNGINXServerStatus "true")" == "STOPPED" ]]; then
+        # If the server is stopped, start it 
+        "${nginx}" >/dev/null 2>&1
+        # Check to see if the server is started
+        if [[ "$(getNGINXServerStatus "true")" == "STARTED" ]]; then
+            printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+        else
+            printf "${right2Column}" "${redText}FAILURE${normalText}"
+        fi 
+    else
+        # The server is already started, so report success
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    fi
+    
+}
+
+# Stop NGINX server
+function stopNGINXServer() {
+
+    # If the NGINX binary doesn't exist, do nothing 
+    local nginx="$(which nginx)"
+    if [[ ${?} != 0 ]]; then
+        return
+    fi
+
+    printf "${left2Column}" "Stopping NGINX server..."
+
+    if [[ "$(getNGINXServerStatus "true")" == "STARTED" ]]; then
+        # If the server is started, stop it
+        "${nginx}" -s stop >/dev/null 2>&1
+        # Wait a few seconds for process termination 
+        sleep ${serviceDelaySeconds} 
+        # Kill any remaining processes
+        ps -ef | grep "nginx" | grep -v "grep" | awk '{print $2}' | xargs -r kill -9 >/dev/null 2>&1
+        # Check to see if server is stopped
+        if [[ "$(getNGINXServerStatus "true")" == "STOPPED" ]]; then
+            printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+        else
+            printf "${right2Column}" "${redText}FAILURE${normalText}"
+        fi 
+    else
+        # The server is already stopped, so report success
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    fi
 
 }
 
 # Prints the status of the Solr server
+# $1: (Optional) boolean (true returns the result via subshell, any other value prints to display)
 function getSolrServerStatus() {
+
+    local noDisplay="${1}"
 
     # If no Solr installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
     if [[ -z "${solrInstallDir}" || ! -d "${solrInstallDir}" ]]; then
         return
     fi
 
-    printf "${left2Column}" "Server: Solr"
+    # Only print info if noDisplay is not true
+    if [[ "${noDisplay}" != "true" ]]; then
+        printf "${left2Column}" "Server: Solr"
+    fi
 
     # See if the server is running
-    ps -ef | grep "solr/quick-results-collection" | grep -v "grep" >/dev/null 2>&1
-
-    if [[ ${?} == 0 ]]; then
+    if [[ $(ps -ef | grep -v "grep" | grep -c "solr/quick-results-collection") > 0 ]]; then
         # If we found a match, the server is started
-        printf "${right2Column}" "${greenText}STARTED${normalText}"
+        if [[ "${noDisplay}" == "true" ]]; then
+            echo "STARTED"
+        else
+            printf "${right2Column}" "${greenText}STARTED${normalText}"
+        fi
     else 
         # If we did not find a match, the server is stopped
-        printf "${right2Column}" "${redText}STOPPED${normalText}"
+        if [[ "${noDisplay}" == "true" ]]; then
+            echo "STOPPED"
+        else
+            printf "${right2Column}" "${redText}STOPPED${normalText}"
+        fi
     fi
 
 }
@@ -507,32 +649,32 @@ function startSolrServer() {
         exit 1
     fi
 
-    cd "${solrInstallDir}/node1" 2>/dev/null
-
-    # Start Solr
-    nohup "${java}" \
-        -jar "${solrInstallDir}/node1/start.jar" \
-        "-DSTOP.PORT=${solrPort}" \
-        "-DSTOP.KEY=${solrKey}" \
-        "-Djetty.ssl.clientAuth=true" \
-        "-Dhost=$(hostname --fqdn)" \
-        "-Dcollection.configName=myConf" \
-        "-DzkRun" \
-        "-DnumShards=1" \
-        "-Dbootstrap_confdir=${solrInstallDir}/node1/solr/quick-results-collection/conf" \
-        >/dev/null 2>&1 &
-
-    # Wait a few seconds for the server to start
-    sleep ${serviceDelaySeconds} 
-
-    # See if the server is started
-    ps -ef | grep "solr/quick-results-collection" | grep -v "grep" >/dev/null 2>&1
-    if [[ ${?} == 1 ]]; then
-        # Failure to grep Solr is failure in a start scenario
-        printf "${right2Column}" "${redText}FAILURE${normalText}"
+    if [[ "$(getSolrServerStatus "true")" == "STOPPED" ]]; then
+        # If the server is stopped, start it 
+        cd "${solrInstallDir}/node1" 2>/dev/null
+        nohup "${java}" \
+            -jar "${solrInstallDir}/node1/start.jar" \
+            "-DSTOP.PORT=${solrPort}" \
+            "-DSTOP.KEY=${solrKey}" \
+            "-Djetty.ssl.clientAuth=true" \
+            "-Dhost=$(hostname --fqdn)" \
+            "-Dcollection.configName=myConf" \
+            "-DzkRun" \
+            "-DnumShards=1" \
+            "-Dbootstrap_confdir=${solrInstallDir}/node1/solr/quick-results-collection/conf" \
+            >/dev/null 2>&1 &
+        # Wait a few seconds for the server to start
+        sleep ${serviceDelaySeconds} 
+        # Check to see if the server is started
+        if [[ "$(getSolrServerStatus "true")" == "STARTED" ]]; then
+            printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+        else
+            printf "${right2Column}" "${redText}FAILURE${normalText}"
+        fi 
     else
+        # The server is already started, so report success
         printf "${right2Column}" "${greenText}SUCCESS${normalText}"
-    fi 
+    fi
 
 }
 
@@ -554,47 +696,60 @@ function stopSolrServer() {
         exit 1
     fi
 
-    # Stop Solr
-    "${java}" \
-        -jar "${solrInstallDir}/node1/start.jar" \
-        "-DSTOP.PORT=${solrPort}" \
-        "-DSTOP.KEY=${solrKey}" \
-        "--stop" \
-        >/dev/null 2>&1
-
-    # Wait a few seconds for the server to stop
-    sleep ${serviceDelaySeconds} 
-
-    # See if the server is stopped
-    ps -ef | grep "solr/quick-results-collection" | grep -v "grep" >/dev/null 2>&1
-    if [[ ${?} == 1 ]]; then
-        # Failure to grep Solr is success in a stop scenario
-        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    if [[ "$(getSolrServerStatus "true")" == "STARTED" ]]; then
+        # If the server is started, stop it 
+        "${java}" \
+            -jar "${solrInstallDir}/node1/start.jar" \
+            "-DSTOP.PORT=${solrPort}" \
+            "-DSTOP.KEY=${solrKey}" \
+            "--stop" \
+            >/dev/null 2>&1
+        # Wait a few seconds for the server to stop
+        sleep ${serviceDelaySeconds} 
+        # Check to see if the server is stopped
+        if [[ "$(getSolrServerStatus "true")" == "STOPPED" ]]; then
+            printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+        else
+            printf "${right2Column}" "${redText}FAILURE${normalText}"
+        fi 
     else
-        printf "${right2Column}" "${redText}FAILURE${normalText}"
-    fi 
+        # The server is already stopped, so report success
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    fi
 
 }
 
 # Prints the status of the DB2 server
+# $1: (Optional) boolean (true returns the result via subshell, any other value prints to display)
 function getDB2ServerStatus() {
+
+    local noDisplay="${1}"
 
     # If no DB2 installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
     if [[ -z "${db2InstallDir}" || ! -d "${db2InstallDir}" ]]; then
         return
     fi
 
-    printf "${left2Column}" "Server: DB2"
+    # Only print info if noDisplay is not true
+    if [[ "${noDisplay}" != "true" ]]; then
+        printf "${left2Column}" "Server: DB2"
+    fi
 
     # See if the server is running
-    ps -ef | grep "db2sysc" | grep -v "grep" >/dev/null 2>&1
-
-    if [[ ${?} == 0 ]]; then
+    if [[ $(ps -ef | grep -v "grep" | grep -c "db2sysc") > 0 ]]; then
         # If we found a match, the server is started
-        printf "${right2Column}" "${greenText}STARTED${normalText}"
+        if [[ "${noDisplay}" == "true" ]]; then
+            echo "STARTED"
+        else
+            printf "${right2Column}" "${greenText}STARTED${normalText}"
+        fi
     else 
         # If we did not find a match, the server is stopped
-        printf "${right2Column}" "${redText}STOPPED${normalText}"
+        if [[ "${noDisplay}" == "true" ]]; then
+            echo "STOPPED"
+        else
+            printf "${right2Column}" "${redText}STOPPED${normalText}"
+        fi
     fi
 
 }
@@ -610,12 +765,18 @@ function startDB2Server() {
 
     printf "${left2Column}" "Starting DB2..."
 
-    status=$(sudo -i -u "${db2InstanceUser}" "db2start")
-
-    if [[ "${status}" =~ "SQL1063N" || "${status}" =~ "SQL1026N" ]]; then
-        printf "${right2Column}" "${greenText}SUCCESS${normalText}" 
+    if [[ "$(getDB2ServerStatus "true")" == "STOPPED" ]]; then
+        # If the server is stopped, start it 
+        status=$(sudo -i -u "${db2InstanceUser}" "db2start")
+        # Check to see if the server is started
+        if [[ "$(getDB2ServerStatus "true")" == "STARTED" ]]; then
+            printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+        else
+            printf "${right2Column}" "${redText}FAILURE${normalText}"
+        fi 
     else
-        printf "${right2Column}" "${redText}FAILURE${normalText}" 
+        # The server is already started, so report success
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
     fi
 
 }
@@ -631,14 +792,19 @@ function stopDB2Server() {
 
     printf "${left2Column}" "Stopping DB2..."
 
-    status=$(sudo -i -u "${db2InstanceUser}" "db2stop")
-
-    if [[ "${status}" =~ "SQL1064N" || "${status}" =~ "SQL1032N" ]]; then
-        printf "${right2Column}" "${greenText}SUCCESS${normalText}" 
-    elif [[ "${status}" =~ "SQL1025N" ]]; then
-        printf "${right2Column}" "${redText}FAILURE${normalText} (active connections)"
+    if [[ "$(getDB2ServerStatus "true")" == "STARTED" ]]; then
+        # If the server is started, stop it 
+        status=$(sudo -i -u "${db2InstanceUser}" "db2stop")
+        if [[ "${status}" =~ "SQL1064N" || "${status}" =~ "SQL1032N" ]]; then
+            printf "${right2Column}" "${greenText}SUCCESS${normalText}" 
+        elif [[ "${status}" =~ "SQL1025N" ]]; then
+            printf "${right2Column}" "${redText}FAILURE${normalText} (active connections)"
+        else
+            printf "${right2Column}" "${redText}FAILURE${normalText}" 
+        fi
     else
-        printf "${right2Column}" "${redText}FAILURE${normalText}" 
+        # The server is already stopped, so report success
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
     fi
 
 }

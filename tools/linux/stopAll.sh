@@ -39,6 +39,11 @@ if [[ "$(directoryExists "${ihsInstallDir}")" == "true" ]]; then
     "${scriptDir}/stopIHS.sh"
 fi
 
+# Stop NGINX
+if [[ "${nginxProxy}" == "true" ]]; then
+    "${scriptDir}/stopNGINX.sh"
+fi
+
 # Stop Solr
 if [[ "$(directoryExists "${solrInstallDir}")" == "true" ]]; then
     "${scriptDir}/stopSolr.sh"
