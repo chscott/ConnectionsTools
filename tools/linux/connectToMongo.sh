@@ -32,6 +32,7 @@ init "${@}"
 pods=($("${scriptDir}/getPodInfo.sh" --all | grep "mongo" | awk '{print $1}'))
 
 # Try to connect to a pod
+log "Locating the master replica..."
 for pod in "${pods[@]}"; do
 
     # First see if this is the master replica (commands only work on master). Remove the trailing \r character or the string comparison will fail

@@ -2,7 +2,7 @@
 
 function usage() {
 
-    log "Usage: sudo getPodLogs.sh POD_NAME [--monitor|--print]"
+    log "Usage: sudo getPodLogs.sh POD_NAME | POD_TYPE [--monitor | --print | --monitorAll | --printAll]"
 
 }
 
