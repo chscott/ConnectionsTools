@@ -12,5 +12,6 @@ for managing components like generic pods, MongoDB and Redis.
 - [getPodLogs](getPodLogs.md)
 - [getPodName](getPodName.md)
 - [getPodShell](getPodShell.md)
+- [setPodLogLevel.sh](setPodLogLevel.md)
 - [startNGINX](startNGINX.md)
 - [stopNGINX](stopNGINX.md)
