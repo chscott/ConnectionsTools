@@ -27,8 +27,8 @@
   the following commands (assuming the tools were copied to C:\Bin):
   
   ```Shell
-  > Get-ChildItems C:\Bin | Unblock-File
-  > Get-ChildItems C:\ProgramData\ConnectionsTools | Unblock-File
+  > Get-ChildItem C:\Bin | Unblock-File
+  > Get-ChildItem C:\ProgramData\ConnectionsTools | Unblock-File
   ```
    
 - If you choose the advanced installation option of hosting the tools on a shared drive, note that Windows may still generate
