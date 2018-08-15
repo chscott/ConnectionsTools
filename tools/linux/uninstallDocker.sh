@@ -2,6 +2,16 @@
 
 function init() {
 
+    # Set up the log file
+    logFile="/var/log/uninstallDocker.log"
+    >|"${logFile}"
+    # This is used to give us a file descriptor to print to normal stdout
+    exec 101>&1
+    # Redirect output to the log
+    exec 1>>"${logFile}" 2>&1
+    # Give process substitution a moment to complete before main shell continues
+    sleep 1
+
     # Source the prereqs
     scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     . "/etc/ictools.conf" 
@@ -10,80 +20,121 @@ function init() {
     # Make sure we're running as root
     checkForRoot
 
-    # Set up the log file
-    logFile="/var/log/uninstallDocker.log"
-    log "Beginning uninstallation of Docker" >|"${logFile}"
+}
+
+function logToConsole() {
+
+    local message="${1}"
+
+	printf "%s\n" "${message}" >&101
 
 }
 
-function getDistro() {
+function exitWithError() {
 
-    # Try /etc/system-release
-    if [[ -f "/etc/system-release" ]]; then
-        release="$(cat /etc/system-release)"
-        log "Contents of /etc/system-release: ${release}" >>"${logFile}"
-        if [[ $(echo "${release}" | grep -c "Red Hat") > 0 ]]; then
-            distro="redhat"
-        elif [[ $(echo "${release}" | grep -c "CentOS") > 0 ]]; then
-            distro="centos"
-        else
-            distro="unsupported"
+    local message="${1}"
+
+    logToConsole "${message}. Review ${logFile} for additional details"
+    exit 1
+
+}
+
+function uninstallPackage() {
+
+    local package="${1}"
+
+    # yum
+    if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
+        if yum list installed "${package}"; then 
+            log "Uninstalling package ${package}..."
+            yum remove -y "${package}" || exitWithError "Error uninstalling Docker components"
+        fi
+    # dnf
+    elif [[ "${distro}" == "fedora" ]]; then
+        if dnf list installed "${package}"; then 
+            log "Uninstalling package ${package}..."
+            dnf remove -y "${package}" || exitWithError "Error uninstalling Docker components"
+        fi
+    # apt
+    elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
+        if dpkg-query --list "${package}"; then 
+            log "Uninstalling package ${package}..."
+            apt-get purge -y "${package}" || exitWithError "Error uninstalling Docker comonents"
         fi
     fi
-
-    log "Distro: ${distro}" >>"${logFile}"
-
-}
-
-function getMajorVersion() {
-
-   # Try /etc/system-release 
-    if [[ -f "/etc/system-release" ]]; then
-        majorVersion="$(cat /etc/system-release | awk '{print $(NF-1)}' | awk -F '.' '{print $1}')"
-    else
-        majorVersion="unknown"
-    fi
-
-    log "Major version: ${majorVersion}" >>"${logFile}"
 
 }
 
 function uninstall() {
 
-    local packageManager="${1}"
+    local packages=( 
+        "container-selinux"
+        "docker" 
+        "docker.io"
+        "docker-ce"
+        "docker-client" 
+        "docker-client-latest" 
+        "docker-common" 
+        "docker-latest" 
+        "docker-latest-logrotate" 
+        "docker-logrotate"
+        "docker-selinux" 
+        "docker-engine-selinux" 
+        "docker-engine" 
+    )
+         
+    logToConsole "Uninstalling Docker..."
 
-    if [[ "${packageManager}" == "yum" ]]; then
-        yum remove -y \
-            "docker" \
-            "docker-ce" \
-            "docker-client" \
-            "docker-client-latest" \
-            "docker-common" \
-            "docker-latest" \
-            "docker-latest-logrotate" \
-            "docker-logrotate" \
-            "docker-selinux" \
-            "docker-engine-selinux" \
-            "docker-engine" \
-            >>"${logFile}" 2>&1
-        if [[ ${?} != 0 ]]; then
-            log "Error uninstalling Docker components. Exiting"
-            exit 1
-        else
-            log "Docker components successfully uninstalled"
-        fi
+    for package in "${packages[@]}"; do
+        uninstallPackage "${package}"
+    done
+
+    logToConsole "Successfully uninstalled Docker"
+
+}
+
+function makeClean() {
+
+    logToConsole "Cleaning up orphaned packages..."
+    
+    # yum
+    if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
+        yum autoremove -y  || exitWithError "Error cleaning orphaned packages"
+    # dnf
+    elif [[ "${distro}" == "fedora" ]]; then
+        dnf autoremove -y || exitWithError "Error cleaning orphaned packages"
+    # apt
+    elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
+        apt-get autoremove -y || exitWithError "Error cleaning orphaned packages"
     fi
+
+}
+
+function makeCleaner() {
+
+    logToConsole "Removing /var/lib/docker..."
+    rm -f -r "/var/lib/docker"
 
 }
 
 init "${@}"
 
-# Get info about the install target
-getDistro
-getMajorVersion
+distro="$(getDistro)"
+let majorVersion=$(getMajorVersion)
+let minorVersion=$(getMinorVersion)
+
+log "Distro: ${distro}"
+log "Major version: ${majorVersion}"
+log "Minor version: ${minorVersion}"
 
 # Uninstall Docker
-log "Uninstalling Docker..."
-if [[ "${distro}" == "centos" || "${distro}" == "redhat" ]]; then
-    uninstall "yum"
+uninstall
+
+# If --clean was specified, remove orphaned packages
+if [[ ! -z "${1}" && "${1}" == "--clean" ]]; then
+    makeClean
+
+elif [[ ! -z "${1}" && "${1}" == "--cleaner" ]]; then
+    makeClean
+    makeCleaner
 fi

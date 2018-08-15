@@ -4,6 +4,95 @@
 # Source prereqs
 . "/etc/ictools.conf"
 
+# Returns ID value from /etc/os-release or "unknown" if not found 
+function getDistro() {
+
+    local distro="unknown"
+
+    if [[ -f "/etc/os-release" ]]; then
+        distro="$(grep "^ID=" "/etc/os-release" | awk -F "=" '{print $2}' | tr -d '"')"
+    fi
+
+    echo "${distro}"
+
+}
+
+# Returns VERSION_ID major number from /etc/os-release or -1 if not found
+function getMajorVersion() {
+
+    local majorVersion=-1
+
+    if [[ -f "/etc/os-release" ]]; then
+        let majorVersion=$(grep "^VERSION_ID=" "/etc/os-release" | awk -F "=" '{print $2}' | tr -d '"' | awk -F "." '{print $1}')
+    fi
+
+    echo ${majorVersion}
+
+}
+
+# Returns VERSION_ID minor number from /etc/os-release or -1 if not found
+function getMinorVersion() {
+
+    local minorVersion=-1
+
+    if [[ -f "/etc/os-release" ]]; then
+        # Coerce to decimal
+        let minorVersion=10#$(grep "^VERSION_ID=" "/etc/os-release" | awk -F "=" '{print $2}' | tr -d '"' | awk -F "." '{print $2}')
+    fi
+
+    echo ${minorVersion}
+
+}
+
+# Determines if the system release is supported for Component Pack. Support is the intersection of support for Docker, K8s and Helm.
+# Docker 17.03 requirements: https://docs.docker.com/v17.03/engine/installation/linux/${distro}/#os-requirements
+# Kubernetes 1.11 requirements: https://github.com/kubernetes/website/blob/release-1.11/content/en/docs/tasks/tools/install-kubeadm.md
+function isCPSupportedRelease() {
+
+    # Support is explicit
+    local isSupported="false"
+    local distro="$(getDistro)"
+    local majorVersion=$(getMajorVersion)
+    local minorVersion=$(getMinorVersion)
+
+    # Centos
+    if [[ "${distro}" == "centos" ]]; then
+        if (( ${majorVersion} == 7 )); then 
+            isSupported="true"
+        fi
+    # RHEL
+    elif [[ "${distro}" == "rhel" ]]; then
+        if (( ${majorVersion} == 7 )); then 
+            isSupported="true"
+        fi
+    # Fedora (25)
+    elif [[ "${distro}" == "fedora" ]]; then
+        if (( ${majorVersion} == 25 )); then 
+            isSupported="true"
+        fi
+    # Debian (9)
+    elif [[ "${distro}" == "debian" ]]; then
+        if (( ${majorVersion} == 9 )); then 
+            isSupported="true"
+        fi
+    # Ubuntu (16.04, 16.10)
+    elif [[ "${distro}" == "ubuntu" ]]; then
+        if (( ${majorVersion} == 16 && ${minorVersion} == 4 )); then
+            isSupported="true"
+        elif (( ${majorVersion} == 16 && ${minorVersion} == 10 )); then
+            isSupported="true"
+        fi
+    fi 
+
+    # Machine architecture must be x86_64
+    if [[ "$(uname -m)" != "x86_64" ]]; then
+        isSupported="false"
+    fi
+
+    echo "${isSupported}"
+
+}
+
 # Tests to make sure the effective user ID is root
 function checkForRoot() {
 
@@ -64,8 +153,8 @@ function checkForK8s() {
 
 }
 
-# Print message
-# $1: message to print
+# Log message to stdout
+# $1: message to log
 function log() {
 
     local message="${1}"
