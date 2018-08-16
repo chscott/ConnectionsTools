@@ -14,7 +14,6 @@ function init() {
 
     # Source the prereqs
     scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    . "/etc/ictools.conf" 
     . "${scriptDir}/utils.sh"
 
     # Make sure we're running as root
@@ -46,19 +45,19 @@ function uninstallPackage() {
     # yum
     if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
         if yum list installed "${package}"; then 
-            log "Uninstalling package ${package}..."
+            log "***** Uninstalling package ${package}..."
             yum remove -y "${package}" || exitWithError "Error uninstalling Docker components"
         fi
     # dnf
     elif [[ "${distro}" == "fedora" ]]; then
         if dnf list installed "${package}"; then 
-            log "Uninstalling package ${package}..."
+            log "***** Uninstalling package ${package}..."
             dnf remove -y "${package}" || exitWithError "Error uninstalling Docker components"
         fi
     # apt
     elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
         if dpkg-query --list "${package}"; then 
-            log "Uninstalling package ${package}..."
+            log "***** Uninstalling package ${package}..."
             apt-get purge -y "${package}" || exitWithError "Error uninstalling Docker comonents"
         fi
     fi
@@ -123,18 +122,24 @@ distro="$(getDistro)"
 let majorVersion=$(getMajorVersion)
 let minorVersion=$(getMinorVersion)
 
-log "Distro: ${distro}"
-log "Major version: ${majorVersion}"
-log "Minor version: ${minorVersion}"
+log "***** Distro: ${distro}"
+log "***** Major version: ${majorVersion}"
+log "***** Minor version: ${minorVersion}"
 
-# Uninstall Docker
-uninstall
-
-# If --clean was specified, remove orphaned packages
+# If --clean was specified, uninstall and remove orphaned packages
 if [[ ! -z "${1}" && "${1}" == "--clean" ]]; then
+    uninstall
     makeClean
-
+# If --cleaner was specified, uninstall, remove orphaned packages, and delete /var/lib/docker. Ask for confirmation first!
 elif [[ ! -z "${1}" && "${1}" == "--cleaner" ]]; then
-    makeClean
-    makeCleaner
+    # Since this is destructive, ask for confirmation
+    read -p "The --cleaner option deletes /var/lib/docker. If you are certain you want to do this, enter 'yes' and press Enter: " answer 2>&101
+    if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then
+        uninstall
+        makeClean
+        makeCleaner
+    fi
+# Just uninstall
+else
+    uninstall
 fi

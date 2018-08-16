@@ -55,12 +55,12 @@ function isCPSupportedRelease() {
     local majorVersion=$(getMajorVersion)
     local minorVersion=$(getMinorVersion)
 
-    # Centos
+    # Centos (7)
     if [[ "${distro}" == "centos" ]]; then
         if (( ${majorVersion} == 7 )); then 
             isSupported="true"
         fi
-    # RHEL
+    # RHEL (7)
     elif [[ "${distro}" == "rhel" ]]; then
         if (( ${majorVersion} == 7 )); then 
             isSupported="true"

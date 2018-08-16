@@ -14,7 +14,6 @@ function init() {
 
     # Source the prereqs
     scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    . "/etc/ictools.conf" 
     . "${scriptDir}/utils.sh"
 
     # Make sure we're running as root
@@ -52,8 +51,6 @@ function checkForDockerCE() {
 
     local isInstalled="false"
 
-    logToConsole "Checking to see if Docker CE is already installed..."
-
     # CentOS/RHEL
     if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
         if yum list installed "docker-ce"; then isInstalled="true"; fi 
@@ -88,7 +85,7 @@ function checkForObsoletePackages() {
         "docker-engine" 
     )
 
-    logToConsole "Checking for obsolete Docker packages..."
+    logToConsole "Removing obsolete Docker packages..."
 
     for obsoletePackage in "${obsoletePackages[@]}"; do
         # yum
@@ -122,35 +119,44 @@ function install() {
     if [[ "${distro}" == "centos" ]]; then
 
         # Install prereqs
+        log "***** Installing prerequisite packages..."
         yum --enablerepo "base" install -y "yum-utils" "device-mapper-persistent-data" "lvm2" || 
             exitWithError "Failed to install prerequisite packages"
 
         # Add Docker CE repo
+        log "***** Adding docker-ce repo..."
         yum-config-manager --add-repo "https://download.docker.com/linux/centos/docker-ce.repo" || 
             exitWithError "Failed to add docker-ce repo"
 
         # Update the yum package index
+        log "***** Updating package index..."
         yum makecache -y fast
 
         # Get the latest version of docker target
+        log "***** Getting the latest version of Docker CE target installation version ${target}..."
         version="$(yum list "docker-ce.x86_64" --showduplicates | \
             grep "${target}" | \
             sort -r | \
             head -1 | \
             awk '{print $2}' | \
             awk -F "-" '{print $1}')" 
+        log "***** Latest version available: ${version}"
 
         # Install Docker CE
+        log "***** Performing Docker CE install..."
         yum --enablerepo "extras" --setopt=obsoletes=0 install -y "docker-ce-${version}" || 
             exitWithError "Failed to install Docker CE components"
 
         # Ensure devicemapper is used as the storage driver
+        log "***** Configuring the devicemapper storage driver..." 
         local configFile="/etc/docker/daemon.json"
+        # In some cases /etc/docker doesn't exist at this point
+        if [[ ! -d "/etc/docker" ]]; then mkdir "/etc/docker"; fi
         if [[ ! -f "${configFile}" ]]; then
            printf "{\n\t\"storage-driver\": \"devicemapper\"\n}\n" >"${configFile}" 
         else
             local tmpConfigFile=$(mktemp /etc/docker/daemon.json.XXX)
-            logToConsole "An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one" 
+            logToConsole "An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
             mv "${configFile}" "${tmpConfigFile}"
             printf "{\n\t\"storage-driver\": \"devicemapper\"\n}\n" >"${configFile}" 
         fi
@@ -159,35 +165,44 @@ function install() {
     elif [[ "${distro}" == "rhel" ]]; then
 
         # Install prereqs
+        log "***** Installing prerequisite packages..."
         yum -y --enablerepo "rhel-7-server-rpms" install "yum-utils" "device-mapper-persistent-data" "lvm2" || 
             exitWithError "Failed to install prerequisite packages"
 
         # Add Docker CE repo
+        log "***** Adding docker-ce repo..."
         yum-config-manager --add-repo "https://download.docker.com/linux/centos/docker-ce.repo" || 
             exitWithError "Failed to add docker-ce repo"
 
         # Update the yum package index
+        log "***** Updating package index..."
         yum -y makecache fast
 
         # Get the latest version of docker target
+        log "***** Getting the latest version of Docker CE target installation version ${target}..."
         version="$(yum list "docker-ce.x86_64" --showduplicates | \
             grep "${target}" | \
             sort -r | \
             head -1 | \
             awk '{print $2}' | \
             awk -F "-" '{print $1}')" 
+        log "***** Latest version available: ${version}"
 
         # Install Docker CE
+        log "***** Performing Docker CE install..."
         yum --enablerepo "rhel-7-server-extras-rpms" --setopt=obsoletes=0 install -y "docker-ce-${version}" ||
             exitWithError "Failed to install Docker CE components"
 
         # Ensure devicemapper is used as the storage driver
+        log "***** Configuring the devicemapper storage driver..." 
         local configFile="/etc/docker/daemon.json"
+        # In some cases /etc/docker doesn't exist at this point
+        if [[ ! -d "/etc/docker" ]]; then mkdir "/etc/docker"; fi
         if [[ ! -f "${configFile}" ]]; then
            printf "{\n\t\"storage-driver\": \"devicemapper\"\n}\n" >"${configFile}" 
         else
             local tmpConfigFile=$(mktemp /etc/docker/daemon.json.XXX)
-            logToConsole "An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one" 
+            logToConsole "An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
             mv "${configFile}" "${tmpConfigFile}"
             printf "{\n\t\"storage-driver\": \"devicemapper\"\n}\n" >"${configFile}" 
         fi
@@ -196,25 +211,31 @@ function install() {
     elif [[ "${distro}" == "fedora" ]]; then
 
         # Install prereqs
+        log "***** Installing prerequisite packages..."
         dnf -y --enablerepo "fedora" install "dnf-plugins-core" || 
             exitWithError "Failed to install prerequisite packages"
 
         # Add Docker CE repo
+        log "***** Adding docker-ce repo..."
         dnf config-manager --add-repo "https://download.docker.com/linux/fedora/docker-ce.repo" || 
             exitWithError "Failed to add docker-ce repo"
 
         # Update the yum package index
+        log "***** Updating package index..."
         dnf -y makecache fast
 
         # Get the latest version of docker target
+        log "***** Getting the latest version of Docker CE target installation version ${target}..."
         version="$(dnf list "docker-ce" --showduplicates | \
             grep "${target}" | \
             sort -r | \
             head -1 | \
             awk '{print $2}' | \
             awk -F "-" '{print $1}')" 
+        log "***** Latest version available: ${version}"
 
         # Install Docker CE
+        log "***** Performing Docker CE install..."
         dnf -y install "docker-ce-${version}" || 
             exitWithError "Failed to install Docker CE components"
 
@@ -222,29 +243,36 @@ function install() {
     elif [[ "${distro}" == "debian" ]]; then
 
         # Install prereqs
+        log "***** Installing prerequisite packages..."
         apt-get -y install "apt-transport-https" "ca-certificates" "curl" "gnupg2" "software-properties-common" ||
             exitWithError "Failed to install prerequisite packages"
 
         # Add Docker GPG key
+        log "***** Adding Docker GPG key to apt..."
         curl -fsSL "https://download.docker.com/linux/debian/gpg" | apt-key add - || 
             exitWithError "Failed to add Docker GPG key"
 
         # Add Docker repo
+        log "***** Adding docker-ce repo..."
         add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable" ||
             exitWithError "Failed to add Docker repo"
 
         # Update the apt package index
+        log "***** Updating package index..."
         apt-get -y update
 
         # Get the latest version of docker target
+        log "***** Getting the latest version of Docker CE target installation version ${target}..."
         version="$(apt-cache madison "docker-ce" | \
             grep "${target}" | \
             sort -r | \
             head -1 | \
-            awk -F "\| " '{print $2}' | \
+            awk -F '\\| ' '{print $2}' | \
             tr -d ' ')" 
+        log "***** Latest version available: ${version}"
 
         # Install Docker CE
+        log "***** Performing Docker CE install..."
         apt-get install -y "docker-ce=${version}" || 
             exitWithError "Failed to install Docker CE components"
 
@@ -252,29 +280,36 @@ function install() {
     elif [[ "${distro}" == "ubuntu" ]]; then
 
         # Install prereqs
+        log "***** Installing prerequisite packages..."
         apt-get -y install "apt-transport-https" "ca-certificates" "curl" "software-properties-common" ||
             exitWithError "Failed to install prerequisite packages"
 
         # Add Docker GPG key
+        log "***** Adding Docker GPG key to apt..."
         curl -fsSL "https://download.docker.com/linux/ubuntu/gpg" | apt-key add - || 
             exitWithError "Failed to add Docker GPG key"
 
         # Add Docker repo
+        log "***** Adding docker-ce repo..."
         add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" ||
             exitWithError "Failed to add Docker repo"
 
         # Update the apt package index
+        log "***** Updating package index..."
         apt-get -y update
 
         # Get the latest version of docker target
+        log "***** Getting the latest version of Docker CE target installation version ${target}..."
         version="$(apt-cache madison "docker-ce" | \
             grep "${target}" | \
             sort -r | \
             head -1 | \
-            awk -F "\| " '{print $2}' | \
+            awk -F '\\| ' '{print $2}' | \
             tr -d ' ')" 
+        log "***** Latest version available: ${version}"
 
         # Install Docker CE
+        log "***** Performing Docker CE install..."
         apt-get install -y "docker-ce=${version}" || 
             exitWithError "Failed to install Docker CE components"
 
@@ -301,9 +336,9 @@ distro="$(getDistro)"
 let majorVersion=$(getMajorVersion)
 let minorVersion=$(getMinorVersion)
 
-log "Distro: ${distro}"
-log "Major version: ${majorVersion}"
-log "Minor version: ${minorVersion}"
+log "***** Distro: ${distro}"
+log "***** Major version: ${majorVersion}"
+log "***** Minor version: ${minorVersion}"
 
 if [[ "$(isCPSupportedRelease)" == "true" ]]; then
     # If RHEL, --force must be provided to install
