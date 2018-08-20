@@ -19,6 +19,10 @@ function init() {
     # Make sure we're running as root
     checkForRoot
 
+    # Global variables
+    dockerDataDir="/var/lib/docker"
+    dockerConfigDir="/etc/docker"
+
 }
 
 # Print a message to terminal
@@ -43,6 +47,7 @@ function exitWithError() {
 # Uninstall the specified package. Current behavior relies on package managers not returning error codes if packages are simply not found
 function uninstallPackage() {
 
+    local distro="$(getDistro)"
     local package="${1}"
 
     # yum
@@ -97,6 +102,8 @@ function uninstall() {
 # Deleted orphaned packages (Docker and otherwise)
 function makeClean() {
 
+    local distro="$(getDistro)"
+
     logToConsole "Cleaning up orphaned packages..."
     
     # yum
@@ -115,7 +122,7 @@ function makeClean() {
 # Delete the Docker config and data directories
 function makeCleaner() {
 
-    rm -f -r "/etc/docker" "/var/lib/docker"
+    rm -f -r "${dockerConfigDir}" "${dockerDataDir}"
 
 }
 
@@ -133,10 +140,10 @@ log "***** Minor version: ${osMinorVersion}"
 if [[ ! -z "${1}" && "${1}" == "--clean" ]]; then
     uninstall
     makeClean
-# If --cleaner was specified, uninstall, remove orphaned packages, and delete /var/lib/docker. Ask for confirmation first!
+# If --cleaner was specified, uninstall, remove orphaned packages, and delete ${dockerDataDir}. Ask for confirmation first!
 elif [[ ! -z "${1}" && "${1}" == "--cleaner" ]]; then
     # Since this is destructive, ask for confirmation
-    logToConsole "WARNING! The --cleaner option will delete /etc/docker and /var/lib/docker, removing all configuration and data"
+    logToConsole "WARNING! The --cleaner option will delete ${dockerConfigDir} and ${dockerDataDir}, removing all configuration and data"
     logToConsole ""
     read -p "If you are certain you want to do this, enter 'yes' and press Enter: " answer 2>&101
     if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then

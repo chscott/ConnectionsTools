@@ -22,14 +22,14 @@ function getDistro() {
 function isKernelAtLeast() {
 
     local releaseToCheck="${1}"
-    local releaseToCheckW=$(echo "${releaseToCheck}" | awk -F "." '{print $1}')
-    local releaseToCheckX=$(echo "${releaseToCheck}" | awk -F "." '{print $2}')
-    local releaseToCheckY=$(echo "${releaseToCheck}" | awk -F "." '{print $3}' | awk -F "-" '{print $1}')
-    local releaseToCheckZ=$(echo "${releaseToCheck}" | awk -F "." '{print $3}' | awk -F "-" '{print $2}')
-    local kernelW=$(uname -r | awk -F "." '{print $1}')
-    local kernelX=$(uname -r | awk -F "." '{print $2}')
-    local kernelY=$(uname -r | awk -F "." '{print $3}' | awk -F "-" '{print $1}')
-    local kernelZ=$(uname -r | awk -F "." '{print $3}' | awk -F "-" '{print $2}')
+    let releaseToCheckW=10#$(echo "${releaseToCheck}" | awk -F "." '{print $1}')
+    let releaseToCheckX=10#$(echo "${releaseToCheck}" | awk -F "." '{print $2}')
+    let releaseToCheckY=10#$(echo "${releaseToCheck}" | awk -F "." '{print $3}' | awk -F "-" '{print $1}')
+    let releaseToCheckZ=10#$(echo "${releaseToCheck}" | awk -F "." '{print $3}' | awk -F "-" '{print $2}')
+    let kernelW=10#$(uname -r | awk -F "." '{print $1}')
+    let kernelX=10#$(uname -r | awk -F "." '{print $2}')
+    let kernelY=10#$(uname -r | awk -F "." '{print $3}' | awk -F "-" '{print $1}')
+    let kernelZ=10#$(uname -r | awk -F "." '{print $3}' | awk -F "-" '{print $2}')
 
     if (( releaseToCheckW >= kernelW && releaseToCheckX >= kernelX && releaseToCheckY >= kernelY && releaseToCheckZ >= kernelZ )); then
         echo "true"
@@ -57,9 +57,17 @@ function getOSMinorVersion() {
 
     local minorVersion=-1
 
-    if [[ -f "/etc/os-release" ]]; then
-        # Coerce to decimal
-        let minorVersion=10#$(grep "^VERSION_ID=" "/etc/os-release" | awk -F "=" '{print $2}' | tr -d '"' | awk -F "." '{print $2}')
+    if [[ "$(getDistro)" == "centos" ]]; then
+        # CentOS uses /etc/system-release to store the RHEL equivalent version, including minor version. This is handy for equivalence operations.
+        if [[ -f "/etc/system-release" ]]; then
+            # Coerce to decimal
+            let minorVersion=10#$(awk -F "." '{print $2}' "/etc/system-release")
+        fi 
+    else
+        if [[ -f "/etc/os-release" ]]; then
+            # Coerce to decimal
+            let minorVersion=10#$(grep "^VERSION_ID=" "/etc/os-release" | awk -F "=" '{print $2}' | tr -d '"' | awk -F "." '{print $2}')
+        fi
     fi
 
     echo ${minorVersion}
@@ -108,24 +116,39 @@ function getFSTypeForDirectory() {
     local directory="${1}"
     local fsType="unknown"
 
-    if [[ -d "${directory}" ]]; then
-        # Case 1: the directory exists
-        fsType=$(df --output=fstype "${directory}" | grep -v "^Type")
-    else
-        # Case 2: the directory does not exist. Find the FS type for the closest parent
-        local dirCount=$(echo "${directory}" | grep --only-matching "/" | wc -l)
-        for ((i=1; i<=dirCount; i++)); do
-            directory="$(dirname "${directory}")"
-            # Parent directory exists
-            if [[ -d "${directory}" ]]; then
-                fsType=$(df --output=fstype "${directory}" | grep -v "^Type")
-                # Found the FS type, now break out of loop
-                break
-            fi
-        done
-    fi
+    # Try running df on all directories in path, starting at the leaf and working backward. Use the first directory with FS info
+    until df "${directory}" >/dev/null 2>&1; do
+        directory="$(dirname "${directory}")"
+    done
+    # Get the FS type of the directory
+    fsType=$(df --output=fstype "${directory}" | grep -v "^Type")
 
     echo "${fsType}"
+
+}
+
+# Returns whether or not d-type is enabled for xfs directory. If directory doesn't exist, returns the file system type for closest parent
+function isDTypeEnabledForDirectory() {
+
+    local directory="${1}"
+    local dType="false"
+    
+    # Return false if xfs_info isn't available
+    if command -v xfs_info >/dev/null 2>&1; then
+        # Try running xfs_info on all directories in path, starting at the leaf and working backward. Use the first directory with XFS info
+        until xfs_info "${directory}" >/dev/null 2>&1; do
+            directory="$(dirname "${directory}")"
+        done
+        # Get the d-type of the directory
+        dType=$(xfs_info "${directory}" | grep "ftype" | awk -F "ftype=" '{print $2}')
+        if (( ${dType} == 1 )); then
+            dType="true"
+        else
+            dType="false"
+        fi
+    fi
+
+    echo "${dType}"
 
 }
 

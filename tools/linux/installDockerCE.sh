@@ -19,7 +19,14 @@ function init() {
     # Make sure we're running as root
     checkForRoot
 
-    # Process the user arguments
+    # Process the user arguments and set global variables
+    dockerDataDir="/var/lib/docker"
+    dockerConfigDir="/etc/docker"
+    checkRequirements="false"
+    forceRHELInstall="false"
+    forceDMStorageDriver="false"
+    directLvmDevice=""
+    selectedStorageDriver=""
     while [[ ${#} > 0 ]]; do
         local key="${1}"
         local value="${2}"
@@ -27,8 +34,11 @@ function init() {
             --check)
                 checkRequirements="true"
                 shift;;
-            --force)
-                forceInstall="true"
+            --force-rhel-install)
+                forceRHELInstall="true"
+                shift;;
+            --force-devicemapper)
+                forceDMStorageDriver="true"
                 shift;;
             --direct-lvm-device)
                 directLvmDevice="${value}"
@@ -70,10 +80,12 @@ function exitWithoutError() {
 # Print a table of requirements if the user requested it via the --check option
 function checkForRequirements() {
 
+    local distro="$(getDistro)"
+
     printf "%-20s\t%-20s\t%-20s\n" "Requirement" "Found" "Requires" >&101
     printf "%-20s\t%-20s\t%-20s\n" "-----------" "-----" "--------" >&101
     printf "%-20s\t%-20s\t%-20s\n" "Distro:" "${distro}" "centos, rhel*, fedora, debian or ubuntu" >&101
-    printf "%-20s\t%-20s\t%-20s\n" "Version:" "${osMajorVersion}.${osMinorVersion}" \
+    printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion).$(getOSMinorVersion)" \
            "7.x (centos and rhel), 25.x (fedora), 9.x (debian) or 16.04/16.10 (ubuntu)" >&101
     printf "%-20s\t%-20s\t%-20s\n" "Machine architecture:" "$(getMachineArchitecture)" "x86_64" >&101
     printf "%-20s\t%-20s\t%-20s\n" "Logical cores:" "$(getLogicalCores)" "At least 2" >&101
@@ -81,7 +93,7 @@ function checkForRequirements() {
     printf "%-20s\t%-20s\t%-20s\n" "Total swap:" "$(getSwapMemory)" "Must be 0" >&101
     printf "\n" >&101
     if [[ "${distro}" == "rhel" ]]; then
-        printf "*RHEL is not supported with Docker CE. You can install it anyway using the --force option\n" >&101
+        printf "*RHEL is not supported with Docker CE. You can install it anyway using the --force-rhel-install option\n" >&101
         printf "\n" >&101
     fi
     if [[ "$(isCPSupportedPlatform)" == "true" ]]; then
@@ -96,6 +108,8 @@ function checkForRequirements() {
 # Test prereqs for install. Any checks that do not pass exit immediately
 function checkPrereqs() {
 
+    logToConsole "Checking system for prereqs..."
+
     # Check the platform requirements
     log "***** Checking to see if system meets requirements to install Docker..."
     if [[ "$(isCPSupportedPlatform)" == "false" ]]; then 
@@ -108,63 +122,10 @@ function checkPrereqs() {
         exitWithError "Docker CE is already installed"
     fi
 
-    # If a direct-lvm device was provided, verify its requirements
-    if [[ ! -z "${directLvmDevice}" ]]; then
-        # Only for CentOS and RHEL. Other distros use overlay2, which is preferred
-        if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
-            # If lsblk isn't available, don't try to configure direct-lvm
-            if command -v lsblk; then
-                # Get the number of devices returned by the lsblk command for this device (includes dependent devices like partitions)
-                local deviceCount=$(lsblk --noheadings --output NAME "${directLvmDevice}" | wc -l)
-                # Get the type for this device
-                local deviceType="$(lsblk --noheadings --nodeps --output TYPE "${directLvmDevice}")"
-                # Get the filesystem type for this device
-                local deviceFSType="$(lsblk --noheadings --nodeps --output FSTYPE "${directLvmDevice}")"
-                # This helps with reporting
-                if [[ "${deviceFSType}" == "" ]]; then
-                    deviceFSType="<null>"
-                fi
-                # Allow configuration if device is a disk or partition with no dependent devices and no filesystem
-                if [[ ("${deviceType}" == "disk" || "${deviceType}" == "part") && "${deviceCount}" == 1 && "${deviceFSType}" == "<null>" ]]; then
-                    # Since this is destructive, ask for confirmation. The checks should ensure not data is lost, but ask anyway, just in case
-                    logToConsole "WARNING! The --direct-lvm-device option will destroy all existing data on ${directLvmDevice}."
-                    logToConsole "Setting up a new block device for devicemapper also requires deleting /var/lib/docker, which"
-                    logToConsole "will delete all of your Docker data (e.g. images and containers)."
-                    logToConsole ""
-                    read -p "If you are certain you want to do this, enter 'yes' and press Enter: " answer1 2>&101
-                    if [[ ! -z "${answer1}" && "${answer1}" == "yes" ]]; then
-                        log "***** Allowing direct-lvm configuration for device ${directLvmDevice}..."
-                    else
-                        exitWithoutError "Aborting Docker CE install"
-                    fi
-                else
-                    log "***** The --direct-lvm-device ${directLvmDevice} does not meet requirements for configuration"
-                    printf "%-20s\t%-20s\t%-20s\n" "Requirement" "Found" "Requires"
-                    printf "%-20s\t%-20s\t%-20s\n" "-----------" "-----" "--------"
-                    printf "%-20s\t%-20s\t%-20s\n" "Type:" "${deviceType}" "disk or part"
-                    printf "%-20s\t%-20s\t%-20s\n" "FS Type:" "${deviceFSType}" "<null>" 
-                    printf "%-20s\t%-20s\t%-20s\n" "Device count:" "${deviceCount}" "1" 
-                    exitWithError "Device ${directLvmDevice} cannot be configured for direct-lvm"
-                fi
-            else
-                exitWithError "--direct-lvm-device was specified, but the lsblk command is not available. Install lsblk and try again"
-            fi
-        else
-            logToConsole "--direct-lvm-device was specified but is not applicable for this platform. Ignoring..."
-        fi
-    else
-        # If --direct-lvm-device was not provided and this is CentOS or RHEL, warn that loop-lvm may be used 
-        if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
-            logToConsole "WARNING! Attempting to install on ${distro} without using the --direct-lvm-device <block device> option."
-            logToConsole "This will result in loop-lvm mode being used. Docker strongly discourages using loop-lvm for production workloads."
-            logToConsole ""
-            read -p "If you are certain you want to do this, enter 'yes' and press Enter: " answer2 2>&101
-            if [[ ! -z "${answer2}" && "${answer2}" == "yes" ]]; then
-                log "***** Allowing loop-lvm configuration..."
-            else
-                exitWithoutError "Aborting Docker CE install"
-            fi
-        fi
+    # Verify ${dockerDataDir} does not exist
+    log "***** Checking to see if ${dockerDataDir} exists..."
+    if [[ -d "${dockerDataDir}" ]]; then
+        exitWithError "The ${dockerDataDir} directory already exists on this system. Back up and remove it before proceeding with the install"
     fi
 
 }
@@ -172,6 +133,7 @@ function checkPrereqs() {
 # See if any obsolete packages are installed. If any are found, exit with direction to run uninstallDocker.sh
 function checkForObsoletePackages() {
 
+    local distro="$(getDistro)"
     local obsoletePackages=( 
         "container-selinux"
         "docker" 
@@ -187,8 +149,6 @@ function checkForObsoletePackages() {
         "docker-engine-selinux" 
         "docker-engine" 
     )
-
-    logToConsole "Removing obsolete Docker packages..."
 
     for obsoletePackage in "${obsoletePackages[@]}"; do
         log "***** Checking to see if obsolete package ${obsoletePackage} is installed..."
@@ -212,111 +172,184 @@ function checkForObsoletePackages() {
 
 }
 
-# Configure direct-lvm for devicemapper
-function configDirectLvm() {
+# Determine if this system can use overlay2
+function canUseOverlay2StorageDriver() {
 
-    # Create the Physical Volume
-    log "***** Creating PV ${directLvmDevice}..."
-    pvcreate -y "${directLvmDevice}" || exitWithError "Failed to create ${directLvmDevice} PV"
+    # As this function is called in a subshell, need to explictly redirect the output to the log file
+    exec 101>&1 && exec 1>>"${logFile}" 2>&1
 
-    # Create the Volume Group
-    log "***** Creating VG docker..."
-    vgcreate -y "docker" "${directLvmDevice}" || exitWithError "Failed to create docker VG"
+    local canUseOverlay2="false"
+    local distro="$(getDistro)"
+    local osMajorVersion=$(getOSMajorVersion)
+    local osMinorVersion=$(getOSMinorVersion)
+    local fsType="$(getFSTypeForDirectory "${dockerDataDir}")"
 
-    # Create the Logical Volumes
-    log "***** Creating LV thinpool..."
-    lvcreate -y --wipesignatures "y" --name "thinpool" --extents "95%VG" "docker" || exitWithError "Failed to create thinpool LV"
-    log "***** Creating LV thinpoolmeta..."
-    lvcreate -y --wipesignatures "y" --name "thinpoolmeta" --extents "1%VG" "docker" || exitWithError "Failed to create thinpoolmeta LV"
+    log "***** Checking to see if overlay2 storage driver can be used on this system..."
 
-    # Convert the Logical Volumes to thin pools
-    log "***** Converting LVs to thin pool..."
-    lvconvert -y --zero "n" --chunksize "512K" --thinpool "docker/thinpool" --poolmetadata "docker/thinpoolmeta" ||
-        exitWithError "Failed to convert LVs to thin pool"
-
-    # Create the LVM profile
-    log "***** Creating LVM profile..."
-    local lvmProfile="/etc/lvm/profile/docker-thinpool.profile"
-    local lvmProfileConfig="activation {\n\tthin_pool_autoextend_threshold=80\n\tthin_pool_autoextend_percent=20\n}\n"
-    if [[ ! -f "${lvmProfile}" ]]; then
-       printf "${lvmProfileConfig}" >"${lvmProfile}" 
+    # CentOS/RHEL
+    if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
+        if [[ "$(isKernelAtLeast "3.10.0-514")" == "true" ]]; then 
+            if (( ${osMajorVersion} >= 7 && ${osMinorVersion} >= 2 )); then
+                if [[ "${fsType}" == "xfs" ]]; then 
+                    if [[ "$(isDTypeEnabledForDirectory "${dockerDataDir}")" == "true" ]]; then
+                        canUseOverlay2="true"
+                    fi
+                fi
+            elif (( ${osMajorVersion}== 7 && ${osMinorVersion} == 1 )); then
+                if [[ "${fsType}" == "ext4" ]]; then
+                    canUseOverlay2="true"
+                fi
+            fi
+        fi
+    # Fedora/Debian/Ubuntu
     else
-        # If the file already exists, create a backup
-        local tmpLvmProfile=$(mktemp /etc/lvm/profile/docker-thinpool.profile.XXX)
-        logToConsole "An existing ${lvmProfile} was found. Backing it up as ${tmpLvmProfile} and creating a new one..." 
-        mv "${lvmProfile}" "${tmpLvmProfile}"
-        printf "${lvmProfileConfig}" >"${lvmProfile}" 
+        if [[ "$(isKernelAtLeast "4.0.0-000")" == "true" ]]; then 
+            if [[ "${fsType}" == "xfs" ]]; then 
+                if [[ "$(isDTypeEnabledForDirectory "${dockerDataDir}")" == "true" ]]; then
+                    canUseOverlay2="true"
+                fi
+            elif [[ "${fsType}" == "ext4" ]]; then
+                canUseOverlay2="true"
+            fi
+        fi
     fi
 
-    # Apply the LVM profile
-    log "***** Applying LVM profile..."
-    lvchange -y --metadataprofile "docker-thinpool" "docker/thinpool" || exitWithError "Failed to apply LVM profile"
-
-    # Enable monitoring for Logical Volumes
-    log "***** Enabling monitoring for LVs..."
-    lvs -y --options "+seg_monitor" || exitWithError "Failed to enable LVs for monitoring"
-
-    # Delete /var/lib/docker
-    log "***** Deleting /var/lib/docker..."
-    if [[ -d "/var/lib/docker" ]]; then
-        rm -f -r "/var/lib/docker"
-    fi
-
-    # Configure devicemapper for direct-lvm mode
-    log "***** Configuring devicemapper storage driver for direct-lvm..."
-    local configFile="/etc/docker/daemon.json"
-    local configFileConfig=""
-    configFileConfig+="{\n"
-    configFileConfig+="\t\"storage-driver\": \"devicemapper\",\n"
-    configFileConfig+="\t\"storage-opts\": [\n"
-    configFileConfig+="\t\t\"dm.thinpooldev=/dev/mapper/docker-thinpool\",\n"
-    configFileConfig+="\t\t\"dm.use_deferred_removal=true\"\n"
-    configFileConfig+="\t]\n"
-    configFileConfig+="}\n"
-    # In some cases /etc/docker doesn't exist at this point, so create it
-    if [[ ! -d "/etc/docker" ]]; then 
-        mkdir "/etc/docker"
-    fi
-    if [[ ! -f "${configFile}" ]]; then
-       printf "${configFileConfig}" >"${configFile}"
+    # Print a report if the system does not meet requirements for overlay2
+    if [[ "${canUseOverlay2}" == "false" ]]; then
+        log "***** System does not meet requirements to use overlay2 storage driver"
+        printf "%-20s\t%-20s\t%-20s\n" "Requirement" "Found" "Requires"
+        printf "%-20s\t%-20s\t%-20s\n" "-----------" "-----" "--------"
+        if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
+            printf "%-20s\t%-20s\t%-20s\n" "Kernel:" "$(uname -r)" "3.10.0-514 or later"
+        else
+            printf "%-20s\t%-20s\t%-20s\n" "Kernel:" "$(uname -r)" "4.0.0-000 or later"
+        fi
+        if (( ${osMajorVersion} >= 7 && ${osMinorVersion} >= 2 )); then
+            # Get D-Type now to use in table
+            if [[ "${fsType}" == "xfs" ]]; then
+                local dtypeEnabled="$(isDTypeEnabledForDirectory "${dockerDataDir}")"
+            else
+                local dtypeEnabled="N/A"
+            fi
+            printf "%-20s\t%-20s\t%-20s\n" "FS Type:" "${fsType}" "xfs" 
+            printf "%-20s\t%-20s\t%-20s\n" "D-Type enabled:" "${dtypeEnabled}" "true" 
+        elif (( ${osMajorVersion} == 7 && ${osMinorVersion} == 1 )); then
+            printf "%-20s\t%-20s\t%-20s\n" "FS Type:" "${fsType}" "ext4" 
+        fi
     else
-        # If the file already exists, create a backup
-        local tmpConfigFile=$(mktemp /etc/docker/daemon.json.XXX)
-        logToConsole "An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
-        mv "${configFile}" "${tmpConfigFile}"
-        printf "${configFileConfig}" >"${configFile}"
+        log "***** System meets requirements to use overlay2 storage driver"
     fi
+
+    # Reset FDs so output is returned to caller and not written to the log
+    exec 1>&101 2>&1
+    echo "${canUseOverlay2}"
 
 }
 
-# Configure loop-lvm for devicemapper
-function configLoopLvm() {
+# Determine if this system can use devicemapper with direct-lvm
+function canUseDMDirectStorageDriver() {
 
-    # Delete /var/lib/docker
-    log "***** Deleting /var/lib/docker..."
-    if [[ -d "/var/lib/docker" ]]; then
-        rm -f -r "/var/lib/docker"
-    fi
+    # As this function is called in a subshell, need to explictly redirect the output to the log file
+    exec 101>&1 && exec 1>>"${logFile}" 2>&1
 
-    # Configure devicemapper for direct-lvm mode
-    log "***** Configuring devicemapper storage driver for loop-lvm..."
-    local configFile="/etc/docker/daemon.json"
-    local configFileConfig=""
-    configFileConfig+="{\n"
-    configFileConfig+="\t\"storage-driver\": \"devicemapper\"\n"
-    configFileConfig+="}\n"
-    # In some cases /etc/docker doesn't exist at this point, so create it
-    if [[ ! -d "/etc/docker" ]]; then 
-        mkdir "/etc/docker"
-    fi
-    if [[ ! -f "${configFile}" ]]; then
-       printf "${configFileConfig}" >"${configFile}"
+    local canUseDMDirect="false"
+
+    log "***** Checking to see if devicemapper-direct storage driver can be used on this system..."
+
+    # Can we use devicemapper in the direct-lvm configuration?
+    if [[ -n "${directLvmDevice}" ]]; then
+        # If lsblk isn't available, we can't continue checking
+        if command -v lsblk >/dev/null 2>&1; then
+            # Get the number of devices returned by the lsblk command for this device (includes dependent devices like partitions)
+            local deviceCount=$(lsblk --noheadings --output NAME "${directLvmDevice}" | wc -l)
+            # Get the type for this device
+            local deviceType="$(lsblk --noheadings --nodeps --output TYPE "${directLvmDevice}")"
+            # Get the filesystem type for this device
+            local deviceFSType="$(lsblk --noheadings --nodeps --output FSTYPE "${directLvmDevice}")"
+            # This helps with reporting
+            if [[ "${deviceFSType}" == "" ]]; then
+                deviceFSType="<null>"
+            fi
+            # Allow DM-direct if device is a disk or partition with no dependent devices and no filesystem
+            if [[ ("${deviceType}" == "disk" || "${deviceType}" == "part") && "${deviceCount}" == 1 && "${deviceFSType}" == "<null>" ]]; then
+                log "***** System meets requirements to use devicemapper storage driver with direct-lvm (Device: ${directLvmDevice})"
+                canUseDMDirect="true"
+            else
+                # Print a report if the system does not meet requirements for devicemapper with direct-lvm
+                log "***** System does not meet requirements to use devicemapper storage driver with direct-lvm (Device: ${directLvmDevice})"
+                printf "%-20s\t%-20s\t%-20s\n" "Requirement" "Found" "Requires"
+                printf "%-20s\t%-20s\t%-20s\n" "-----------" "-----" "--------"
+                printf "%-20s\t%-20s\t%-20s\n" "Type:" "${deviceType}" "disk or part"
+                printf "%-20s\t%-20s\t%-20s\n" "FS Type:" "${deviceFSType}" "<null>" 
+                printf "%-20s\t%-20s\t%-20s\n" "Device count:" "${deviceCount}" "1" 
+            fi
+        else
+            log "***** Unable to determine if system can use devicemapper-direct storage driver because lslbk command is missing"
+        fi
     else
-        # If the file already exists, create a backup
-        local tmpConfigFile=$(mktemp /etc/docker/daemon.json.XXX)
-        logToConsole "An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
-        mv "${configFile}" "${tmpConfigFile}"
-        printf "${configFileConfig}" >"${configFile}"
+        log "***** The --direct-lvm-device <block device> option was not provided, so devicemapper-direct cannot be used"
+    fi
+
+    # Reset FDs so output is returned to caller and not written to the log
+    exec 1>&101 2>&1
+    echo "${canUseDMDirect}"
+
+}
+
+# Determine the storage driver to use. If devicemapper (direct-lvm or loop-lvm) are chosen, require user confirmation to proceed
+function determineStorageDriver() {
+
+    local canUseOverlay2="$(canUseOverlay2StorageDriver)"
+    local canUseDMDirect="$(canUseDMDirectStorageDriver)"
+
+    if [[ "${forceDMStorageDriver}" == "true" && "${canUseDMDirect}" == "true" ]]; then
+        selectedStorageDriver="devicemapper-direct"
+    elif [[ "${forceDMStorageDriver}" == "true" && "${canUseDMDirect}" == "false" ]]; then
+        selectedStorageDriver="devicemapper-loop"
+    elif [[ "${canUseOverlay2}" == "true" ]]; then
+        selectedStorageDriver="overlay2"
+    elif [[ "${canUseDMDirect}" == "true" ]]; then
+        selectedStorageDriver="devicemapper-direct"
+    else
+        selectedStorageDriver="devicemapper-loop"
+    fi
+
+    log "***** Selected storage driver ${selectedStorageDriver}"
+
+    # Handle user confirmation
+    if [[ "${selectedStorageDriver}" == "overlay2" && "${canUseDMDirect}" == "true" ]]; then
+        # Ask for confirmation since user specified a direct-lvm device but overlay2 was chosen (because it is preferred)
+        logToConsole "WARNING! This system supports both overlay2 and devicemapper (direct-lvm). The overlay2 driver has been chosen because it is"
+        logToConsole "recommended by Docker. However, --direct-lvm-device <block device> was specified on the command line. To force the use"
+        logToConsole "of devicemapper (direct-lvm), add the --force-devicemapper option."
+        logToConsole ""
+        read -p "To continue installation with overlay2, type 'yes' and press Enter: " answer1 2>&101
+        if [[ ! -z "${answer1}" && "${answer1}" == "yes" ]]; then
+            log "***** Continuing install with overlay2 storage driver..."
+        else
+            exitWithoutError "Aborting Docker CE install"
+        fi
+    elif [[ "${selectedStorageDriver}" == "devicemapper-direct" ]]; then
+        # Since this is destructive, ask for confirmation. The checks should ensure not data is lost, but ask anyway, just in case
+        logToConsole "WARNING! The --direct-lvm-device option will destroy all existing data on ${directLvmDevice}."
+        logToConsole ""
+        read -p "If you are certain you want to do this, enter 'yes' and press Enter: " answer2 2>&101
+        if [[ ! -z "${answer2}" && "${answer2}" == "yes" ]]; then
+            log "***** Allowing direct-lvm configuration for device ${directLvmDevice}..."
+        else
+            exitWithoutError "Aborting Docker CE install"
+        fi
+    elif [[ "${selectedStorageDriver}" == "devicemapper-loop" ]]; then
+        # Since this is not recommended, ask for confirmation
+        logToConsole "WARNING! Attempting to install with the devicemapper driver in the loop-lvm configuration."
+        logToConsole "Docker strongly discourages using loop-lvm for production workloads."
+        logToConsole ""
+        read -p "If you are certain you want to do this, enter 'yes' and press Enter: " answer3 2>&101
+        if [[ ! -z "${answer3}" && "${answer3}" == "yes" ]]; then
+            log "***** Allowing loop-lvm configuration..."
+        else
+            exitWithoutError "Aborting Docker CE install"
+        fi
     fi
 
 }
@@ -324,6 +357,7 @@ function configLoopLvm() {
 # Do the install
 function install() {
 
+    local distro="$(getDistro)"
     local target="17.03"
     local version=""
 
@@ -367,14 +401,6 @@ function install() {
         # Install Docker CE
         log "***** Performing Docker CE install..."
         yum -y --enablerepo "${extrasRepo}" --setopt=obsoletes=0 install "docker-ce-${version}" || exitWithError "Failed to install Docker CE components"
-
-        # Configure direct-lvm, if requested (will use loop-lvm otherwise)
-        log "***** Configuring direct-lvm..."
-        if [[ -n "${directLvmDevice}" ]]; then
-            configDirectLvm
-        else
-            configLoopLvm
-        fi
 
     # Fedora
     elif [[ "${distro}" == "fedora" ]]; then
@@ -446,10 +472,163 @@ function install() {
 
 }
 
+# Configure overlay2
+function configOverlay2() {
+
+    local configFile="${dockerConfigDir}/daemon.json"
+    local configFileConfig=""
+
+    # If kernel is < 4.0.0-000, overlay2.override_kernel_check=true is needed in daemon.json
+    if [[ "$(isKernelAtLeast "4.0.0-000")" == "false" ]]; then
+        configFileConfig+="{\n"
+        configFileConfig+="\t\"storage-driver\": \"overlay2\",\n"
+        configFileConfig+="\t\"storage-opts\": [\n"
+        configFileConfig+="\t\t\"overlay2.override_kernel_check=true\"\n"
+        configFileConfig+="\t]\n"
+        configFileConfig+="}\n"
+    else
+        configFileConfig+="{\n"
+        configFileConfig+="\t\"storage-driver\": \"overlay2\"\n"
+        configFileConfig+="}\n"
+    fi
+
+    log "***** Configuring overlay2 storage driver..."
+
+    # In some cases ${dockerConfigDir} doesn't exist at this point, so create it
+    if [[ ! -d "${dockerConfigDir}" ]]; then 
+        mkdir "${dockerConfigDir}"
+    fi
+
+    # See if the config file already exists
+    if [[ ! -f "${configFile}" ]]; then
+       printf "${configFileConfig}" >"${configFile}"
+    else
+        # If the file already exists, create a backup
+        local tmpConfigFile=$(mktemp ${dockerConfigDir}/daemon.json.XXX)
+        logToConsole "An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
+        mv "${configFile}" "${tmpConfigFile}"
+        printf "${configFileConfig}" >"${configFile}"
+    fi
+
+}
+
+# Configure devicemapper for direct-lvm
+function configDirectLvm() {
+
+    log "***** Configuring devicemapper (direct-lvm) storage driver..."
+
+    # Create the Physical Volume
+    log "***** Creating PV ${directLvmDevice}..."
+    pvcreate -y "${directLvmDevice}" || exitWithError "Failed to create ${directLvmDevice} PV"
+
+    # Create the Volume Group
+    log "***** Creating VG docker..."
+    vgcreate -y "docker" "${directLvmDevice}" || exitWithError "Failed to create docker VG"
+
+    # Create the Logical Volumes
+    log "***** Creating LV thinpool..."
+    lvcreate -y --wipesignatures "y" --name "thinpool" --extents "95%VG" "docker" || exitWithError "Failed to create thinpool LV"
+    log "***** Creating LV thinpoolmeta..."
+    lvcreate -y --wipesignatures "y" --name "thinpoolmeta" --extents "1%VG" "docker" || exitWithError "Failed to create thinpoolmeta LV"
+
+    # Convert the Logical Volumes to thin pools
+    log "***** Converting LVs to thin pool..."
+    lvconvert -y --zero "n" --chunksize "512K" --thinpool "docker/thinpool" --poolmetadata "docker/thinpoolmeta" ||
+        exitWithError "Failed to convert LVs to thin pool"
+
+    # Create the LVM profile
+    log "***** Creating LVM profile..."
+    local lvmProfile="/etc/lvm/profile/docker-thinpool.profile"
+    local lvmProfileConfig="activation {\n\tthin_pool_autoextend_threshold=80\n\tthin_pool_autoextend_percent=20\n}\n"
+    if [[ ! -f "${lvmProfile}" ]]; then
+       printf "${lvmProfileConfig}" >"${lvmProfile}" 
+    else
+        # If the file already exists, create a backup
+        local tmpLvmProfile=$(mktemp /etc/lvm/profile/docker-thinpool.profile.XXX)
+        logToConsole "An existing ${lvmProfile} was found. Backing it up as ${tmpLvmProfile} and creating a new one..." 
+        mv "${lvmProfile}" "${tmpLvmProfile}"
+        printf "${lvmProfileConfig}" >"${lvmProfile}" 
+    fi
+
+    # Apply the LVM profile
+    log "***** Applying LVM profile..."
+    lvchange -y --metadataprofile "docker-thinpool" "docker/thinpool" || exitWithError "Failed to apply LVM profile"
+
+    # Enable monitoring for Logical Volumes
+    log "***** Enabling monitoring for LVs..."
+    lvs -y --options "+seg_monitor" || exitWithError "Failed to enable LVs for monitoring"
+
+    # Configure devicemapper for direct-lvm mode
+    log "***** Configuring devicemapper storage driver for direct-lvm..."
+    local configFile="${dockerConfigDir}/daemon.json"
+    local configFileConfig=""
+    configFileConfig+="{\n"
+    configFileConfig+="\t\"storage-driver\": \"devicemapper\",\n"
+    configFileConfig+="\t\"storage-opts\": [\n"
+    configFileConfig+="\t\t\"dm.thinpooldev=/dev/mapper/docker-thinpool\",\n"
+    configFileConfig+="\t\t\"dm.use_deferred_removal=true\"\n"
+    configFileConfig+="\t]\n"
+    configFileConfig+="}\n"
+    # In some cases ${dockerConfigDir} doesn't exist at this point, so create it
+    if [[ ! -d "${dockerConfigDir}" ]]; then 
+        mkdir "${dockerConfigDir}"
+    fi
+    if [[ ! -f "${configFile}" ]]; then
+       printf "${configFileConfig}" >"${configFile}"
+    else
+        # If the file already exists, create a backup
+        local tmpConfigFile=$(mktemp ${dockerConfigDir}/daemon.json.XXX)
+        logToConsole "An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
+        mv "${configFile}" "${tmpConfigFile}"
+        printf "${configFileConfig}" >"${configFile}"
+    fi
+
+}
+
+# Configure devicemapper for loop-lvm
+function configLoopLvm() {
+
+    local configFile="${dockerConfigDir}/daemon.json"
+    local configFileConfig=""
+    configFileConfig+="{\n"
+    configFileConfig+="\t\"storage-driver\": \"devicemapper\"\n"
+    configFileConfig+="}\n"
+
+    log "***** Configuring devicemapper (loop-lvm) storage driver..."
+
+    # In some cases ${dockerConfigDir} doesn't exist at this point, so create it
+    if [[ ! -d "${dockerConfigDir}" ]]; then 
+        mkdir "${dockerConfigDir}"
+    fi
+    if [[ ! -f "${configFile}" ]]; then
+       printf "${configFileConfig}" >"${configFile}"
+    else
+        # If the file already exists, create a backup
+        local tmpConfigFile=$(mktemp ${dockerConfigDir}/daemon.json.XXX)
+        logToConsole "An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
+        mv "${configFile}" "${tmpConfigFile}"
+        printf "${configFileConfig}" >"${configFile}"
+    fi
+
+}
+
+# Configure the storage driver
+function configStorageDriver() {
+
+    if [[ "${selectedStorageDriver}" == "overlay2" ]]; then
+        configOverlay2
+    elif [[ "${selectedStorageDriver}" == "devicemapper-direct" ]]; then
+        configDirectLvm
+    elif [[ "${selectedStorageDriver}" == "devicemapper-loop" ]]; then
+        configLoopLvm
+    fi
+
+}
+
 # Configure systemd to automatically start docker
 function configAutoStart() {
 
-    if command -v systemctl; then
+    if command -v systemctl >/dev/null 2>&1; then
         systemctl enable "docker" || logToConsole "Failed to enable docker for auto-start. Manual configuration required"
         systemctl start "docker" || logToConsole "Failed to start docker. Manual start required"
     else
@@ -461,8 +640,6 @@ function configAutoStart() {
 init "${@}"
 
 distro="$(getDistro)"
-let osMajorVersion=$(getOSMajorVersion)
-let osMinorVersion=$(getOSMinorVersion)
 
 if [[ "${checkRequirements}" == "true" ]]; then
     # User just wants to check requirements and not do the install
@@ -470,17 +647,19 @@ if [[ "${checkRequirements}" == "true" ]]; then
 else
     # User wants to try the install
     log "***** Distro: ${distro}"
-    log "***** Major version: ${osMajorVersion}"
-    log "***** Minor version: ${osMinorVersion}"
-    # If RHEL, --force must be provided to install
+    log "***** Major version: $(getOSMajorVersion)"
+    log "***** Minor version: $(getOSMinorVersion)"
+    # If RHEL, --force-rhel-install must be provided to install
     if [[ "${distro}" == "rhel" ]]; then
-        if [[ "${forceInstall}" != "true" ]]; then
-            exitWithoutError "Docker CE is not officially supported on RHEL. To force installation anyway, use the --force option"
+        if [[ "${forceRHELInstall}" != "true" ]]; then
+            exitWithoutError "Docker CE is not officially supported on RHEL. To force installation anyway, use the --force-rhel-install option"
         fi
     fi
     checkPrereqs
     checkForObsoletePackages
+    determineStorageDriver
     install
+    configStorageDriver
     configAutoStart
     # Run docker info to dump the config to the log
     log "***** Printing Docker configuration..."
