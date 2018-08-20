@@ -21,6 +21,7 @@ function init() {
 
 }
 
+# Print a message to terminal
 function logToConsole() {
 
     local message="${1}"
@@ -29,6 +30,7 @@ function logToConsole() {
 
 }
 
+# Print error message and exit
 function exitWithError() {
 
     local message="${1}"
@@ -38,6 +40,7 @@ function exitWithError() {
 
 }
 
+# Uninstall the specified package. Current behavior relies on package managers not returning error codes if packages are simply not found
 function uninstallPackage() {
 
     local package="${1}"
@@ -45,25 +48,23 @@ function uninstallPackage() {
     # yum
     if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
         if yum list installed "${package}"; then 
-            log "***** Uninstalling package ${package}..."
             yum remove -y "${package}" || exitWithError "Error uninstalling Docker components"
         fi
     # dnf
     elif [[ "${distro}" == "fedora" ]]; then
         if dnf list installed "${package}"; then 
-            log "***** Uninstalling package ${package}..."
             dnf remove -y "${package}" || exitWithError "Error uninstalling Docker components"
         fi
     # apt
     elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
         if dpkg-query --list "${package}"; then 
-            log "***** Uninstalling package ${package}..."
             apt-get purge -y "${package}" || exitWithError "Error uninstalling Docker comonents"
         fi
     fi
 
 }
 
+# Do the uninstall
 function uninstall() {
 
     local packages=( 
@@ -85,6 +86,7 @@ function uninstall() {
     logToConsole "Uninstalling Docker..."
 
     for package in "${packages[@]}"; do
+        log "***** Uninstalling package ${package}..."
         uninstallPackage "${package}"
     done
 
@@ -92,6 +94,7 @@ function uninstall() {
 
 }
 
+# Deleted orphaned packages (Docker and otherwise)
 function makeClean() {
 
     logToConsole "Cleaning up orphaned packages..."
@@ -109,22 +112,22 @@ function makeClean() {
 
 }
 
+# Delete the Docker config and data directories
 function makeCleaner() {
 
-    logToConsole "Removing /var/lib/docker..."
-    rm -f -r "/var/lib/docker"
+    rm -f -r "/etc/docker" "/var/lib/docker"
 
 }
 
 init "${@}"
 
 distro="$(getDistro)"
-let majorVersion=$(getMajorVersion)
-let minorVersion=$(getMinorVersion)
+let osMajorVersion=$(getOSMajorVersion)
+let osMinorVersion=$(getOSMinorVersion)
 
 log "***** Distro: ${distro}"
-log "***** Major version: ${majorVersion}"
-log "***** Minor version: ${minorVersion}"
+log "***** Major version: ${osMajorVersion}"
+log "***** Minor version: ${osMinorVersion}"
 
 # If --clean was specified, uninstall and remove orphaned packages
 if [[ ! -z "${1}" && "${1}" == "--clean" ]]; then
@@ -133,11 +136,15 @@ if [[ ! -z "${1}" && "${1}" == "--clean" ]]; then
 # If --cleaner was specified, uninstall, remove orphaned packages, and delete /var/lib/docker. Ask for confirmation first!
 elif [[ ! -z "${1}" && "${1}" == "--cleaner" ]]; then
     # Since this is destructive, ask for confirmation
-    read -p "The --cleaner option deletes /var/lib/docker. If you are certain you want to do this, enter 'yes' and press Enter: " answer 2>&101
+    logToConsole "WARNING! The --cleaner option will delete /etc/docker and /var/lib/docker, removing all configuration and data"
+    logToConsole ""
+    read -p "If you are certain you want to do this, enter 'yes' and press Enter: " answer 2>&101
     if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then
         uninstall
         makeClean
         makeCleaner
+    else
+        logToConsole "Aborting Docker uninstall"
     fi
 # Just uninstall
 else

@@ -17,8 +17,30 @@ function getDistro() {
 
 }
 
+# Determines if the kernel on this system is at the provided level or later
+# $1: Release string to check (in format w.x.y-z)
+function isKernelAtLeast() {
+
+    local releaseToCheck="${1}"
+    local releaseToCheckW=$(echo "${releaseToCheck}" | awk -F "." '{print $1}')
+    local releaseToCheckX=$(echo "${releaseToCheck}" | awk -F "." '{print $2}')
+    local releaseToCheckY=$(echo "${releaseToCheck}" | awk -F "." '{print $3}' | awk -F "-" '{print $1}')
+    local releaseToCheckZ=$(echo "${releaseToCheck}" | awk -F "." '{print $3}' | awk -F "-" '{print $2}')
+    local kernelW=$(uname -r | awk -F "." '{print $1}')
+    local kernelX=$(uname -r | awk -F "." '{print $2}')
+    local kernelY=$(uname -r | awk -F "." '{print $3}' | awk -F "-" '{print $1}')
+    local kernelZ=$(uname -r | awk -F "." '{print $3}' | awk -F "-" '{print $2}')
+
+    if (( releaseToCheckW >= kernelW && releaseToCheckX >= kernelX && releaseToCheckY >= kernelY && releaseToCheckZ >= kernelZ )); then
+        echo "true"
+    else
+        echo "false"
+    fi
+
+}
+
 # Returns VERSION_ID major number from /etc/os-release or -1 if not found
-function getMajorVersion() {
+function getOSMajorVersion() {
 
     local majorVersion=-1
 
@@ -31,7 +53,7 @@ function getMajorVersion() {
 }
 
 # Returns VERSION_ID minor number from /etc/os-release or -1 if not found
-function getMinorVersion() {
+function getOSMinorVersion() {
 
     local minorVersion=-1
 
@@ -44,16 +66,107 @@ function getMinorVersion() {
 
 }
 
-# Determines if the system release is supported for Component Pack. Support is the intersection of support for Docker, K8s and Helm.
+# Returns the machine architecture
+function getMachineArchitecture() {
+
+    local machineArchitecture="$(uname -m)"
+
+    echo "${machineArchitecture}"
+
+}
+
+# Returns the number of logical cores
+function getLogicalCores() {
+
+    local logicalCores=$(grep -c "^processor" "/proc/cpuinfo")
+
+    echo ${logicalCores}
+
+}
+
+# Returns the amount of available memory
+function getAvailableMemory() {
+
+    local availableMemory=$(grep "MemAvailable:" "/proc/meminfo" | awk '{print $2}')
+    
+    echo ${availableMemory} 
+
+}
+
+# Returns the amount of total swap memory
+function getSwapMemory() {
+
+    local swapMemory=$(grep "SwapTotal:" "/proc/meminfo" | awk '{print $2}')
+    
+    echo ${swapMemory} 
+
+}
+
+# Returns the file system type for the given directory. If directory doesn't exist, returns the file system type for closest parent
+function getFSTypeForDirectory() {
+
+    local directory="${1}"
+    local fsType="unknown"
+
+    if [[ -d "${directory}" ]]; then
+        # Case 1: the directory exists
+        fsType=$(df --output=fstype "${directory}" | grep -v "^Type")
+    else
+        # Case 2: the directory does not exist. Find the FS type for the closest parent
+        local dirCount=$(echo "${directory}" | grep --only-matching "/" | wc -l)
+        for ((i=1; i<=dirCount; i++)); do
+            directory="$(dirname "${directory}")"
+            # Parent directory exists
+            if [[ -d "${directory}" ]]; then
+                fsType=$(df --output=fstype "${directory}" | grep -v "^Type")
+                # Found the FS type, now break out of loop
+                break
+            fi
+        done
+    fi
+
+    echo "${fsType}"
+
+}
+
+# Return number of K8s master node ports in use (6443, 2379, 2380, 10250-10252, 10255)
+function checkForK8sMasterNodePortsInUse() {
+
+    local activePorts=$(
+        netstat --tcp --listen --numeric | \
+        awk '{print $4}' | \
+        awk -F ':' '{print $NF}' | \
+        grep -c -E "^6443$|^2379$|^2380$|^1025[0-2]$|^10255$" \
+    )
+
+    echo ${activePorts}
+
+}
+
+# Return number of K8s worker node ports in use (10250, 10255, 30000-32767)
+function checkForK8sWorkerNodePortsInUse() {
+
+    local activePorts=$(
+        netstat --tcp --listen --numeric | \
+        awk '{print $4}' | \
+        awk -F ':' '{print $NF}' | \
+        grep -c -E "^10250$|^10255$|3[0-2][0-7[0-6][0-7]" \
+    )
+
+    echo ${activePorts}
+
+}
+
+# Determines if this system is supported for Component Pack. Support is the intersection of support for Docker, K8s and Helm.
 # Docker 17.03 requirements: https://docs.docker.com/v17.03/engine/installation/linux/${distro}/#os-requirements
 # Kubernetes 1.11 requirements: https://github.com/kubernetes/website/blob/release-1.11/content/en/docs/tasks/tools/install-kubeadm.md
-function isCPSupportedRelease() {
+function isCPSupportedPlatform() {
 
     # Support is explicit
     local isSupported="false"
     local distro="$(getDistro)"
-    local majorVersion=$(getMajorVersion)
-    local minorVersion=$(getMinorVersion)
+    local majorVersion=$(getOSMajorVersion)
+    local minorVersion=$(getOSMinorVersion)
 
     # Centos (7)
     if [[ "${distro}" == "centos" ]]; then
@@ -85,7 +198,22 @@ function isCPSupportedRelease() {
     fi 
 
     # Machine architecture must be x86_64
-    if [[ "$(uname -m)" != "x86_64" ]]; then
+    if [[ "$(getMachineArchitecture)" != "x86_64" ]]; then
+        isSupported="false"
+    fi
+
+    # Must have at least 2 CPUs (kubeadm requirement...treating this as logical cores)
+    if (( $(getLogicalCores) < 2 )); then
+        isSupported="false"
+    fi
+
+    # Must have at least 2 GB available memory (kubeadm requirement)
+    if (( $(getAvailableMemory) < (2 * 1024 * 1024) )); then
+        isSupported="false"
+    fi
+
+    # Swap must be disabled (kubeadm requirement)
+    if (( $(getSwapMemory) > 0 )); then
         isSupported="false"
     fi
 
@@ -138,6 +266,52 @@ function checkForTDI() {
         log "${script} can only run on TDI nodes. Exiting."
         exit 1
     fi
+
+}
+
+# Checks to see if Docker CE is installed
+function isDockerCEInstalled() {
+
+    local distro="$(getDistro)"
+    local isInstalled="false"
+
+    # CentOS/RHEL
+    if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
+        if yum list installed "docker-ce"; then isInstalled="true"; fi 
+    # Fedora
+    elif [[ "${distro}" == "fedora" ]]; then
+        if dnf list installed "docker-ce"; then isInstalled="true"; fi 
+    # Debian/Ubuntu
+    elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
+        if dpkg-query --list | grep "docker-ce"; then isInstalled="true"; fi 
+    fi
+
+    echo "${isInstalled}"
+
+}
+
+# Returns the version of Docker CE installed
+function getDockerCEVersion() {
+
+    local distro="$(getDistro)"
+    local installedVersion=""
+
+    if [[ "$(isDockerCEInstalled)" == "true" ]]; then
+        # CentOS/RHEL
+        if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
+            installedVersion="$(yum -q list installed "docker-ce" | grep "docker-ce" | awk '{print $2}' | awk -F '.' '{print $1"."$2}')"
+        # Fedora
+        elif [[ "${distro}" == "fedora" ]]; then
+            installedVersion="$(dnf -q list installed "docker-ce" | grep "docker-ce" | awk '{print $2}' | awk -F '.' '{print $1"."$2}')"
+        # Debian/Ubuntu
+        elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
+            installedVersion="$(if dpkg-query --list | grep "docker-ce" | awk '{print $3}' | awk -F '.' '{print $1"."$2}')"
+        fi
+    else
+        installedVersion="not installed"
+    fi
+
+    echo "${installedVersion}"
 
 }
 
