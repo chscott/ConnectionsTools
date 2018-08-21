@@ -22,6 +22,8 @@ function getDistro() {
 function isKernelAtLeast() {
 
     local releaseToCheck="${1}"
+    local kernelAtLeastAsRecent="false"
+
     let releaseToCheckW=10#$(echo "${releaseToCheck}" | awk -F "." '{print $1}')
     let releaseToCheckX=10#$(echo "${releaseToCheck}" | awk -F "." '{print $2}')
     let releaseToCheckY=10#$(echo "${releaseToCheck}" | awk -F "." '{print $3}' | awk -F "-" '{print $1}')
@@ -31,11 +33,45 @@ function isKernelAtLeast() {
     let kernelY=10#$(uname -r | awk -F "." '{print $3}' | awk -F "-" '{print $1}')
     let kernelZ=10#$(uname -r | awk -F "." '{print $3}' | awk -F "-" '{print $2}')
 
-    if (( releaseToCheckW >= kernelW && releaseToCheckX >= kernelX && releaseToCheckY >= kernelY && releaseToCheckZ >= kernelZ )); then
-        echo "true"
+    if (( kernelW > releaseToCheckW )); then
+        # Kernel W is greater than Release W, so the kernel must be at least as recent
+        kernelAtLeastAsRecent="true"
+    elif (( kernelW < releaseToCheckW )); then
+        # Kernel W is less than Release W, so the kernel cannot be at least as recent
+        kernelAtLeastAsRecent="false"
     else
-        echo "false"
+        # Kernel W is the same as Release W, so we need to check X
+        if (( kernelX > releaseToCheckX )); then
+            # Kernel X is greater than Release X, so the kernel must be at least as recent
+            kernelAtLeastAsRecent="true"
+        elif (( kernelX < releaseToCheckX )); then
+            # Kernel X is less than Release X, so the kernel cannot be at least as recent
+            kernelAtLeastAsRecent="false"
+        else
+            # Kernel X is the same as Release X, so we need to check Y 
+            if (( kernelY > releaseToCheckY )); then
+                # Kernel Y is greater than Release Y, so the kernel must be at least as recent
+                kernelAtLeastAsRecent="true"
+            elif (( kernelY < releaseToCheckY )); then
+                # Kernel Y is less than Release Y, so the kernel cannot be at least as recent
+                kernelAtLeastAsRecent="false"
+            else
+                # Kernel Y is the same as Release Y, so we need to check Z 
+                if (( kernelZ > releaseToCheckZ )); then
+                    # Kernel Z is greater than Release Z, so the kernel must be at least as recent
+                    kernelAtLeastAsRecent="true"
+                elif (( kernelZ < releaseToCheckZ )); then
+                    # Kernel Z is less than Release Z, so the kernel cannot be at least as recent
+                    kernelAtLeastAsRecent="false"
+                else
+                    # Kernel Z is the same as Release Z, so this kernel is the same release as the one being tested
+                    kernelAtLeastAsRecent="true"
+                fi
+            fi
+        fi
     fi
+
+    echo "${kernelAtLeastAsRecent}"
 
 }
 
