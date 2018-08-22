@@ -89,6 +89,7 @@ function getOSMajorVersion() {
 }
 
 # Returns VERSION_ID minor number from /etc/os-release or -1 if not found
+# This function is used for numeric comparison and must regard 16.04 as minor version 4 and not "04"
 function getOSMinorVersion() {
 
     local minorVersion=-1
@@ -103,6 +104,27 @@ function getOSMinorVersion() {
         if [[ -f "/etc/os-release" ]]; then
             # Coerce to decimal
             let minorVersion=10#$(grep "^VERSION_ID=" "/etc/os-release" | awk -F "=" '{print $2}' | tr -d '"' | awk -F "." '{print $2}')
+        fi
+    fi
+
+    echo ${minorVersion}
+
+}
+
+# Returns VERSION_ID minor number from /etc/os-release or -1 if not found
+# This function is used for display and must regard 16.04 as minor version "04" and not 4
+function getOSMinorVersionDisplay() {
+
+    local minorVersion="-1"
+
+    if [[ "$(getDistro)" == "centos" ]]; then
+        # CentOS uses /etc/system-release to store the RHEL equivalent version, including minor version. This is handy for equivalence operations.
+        if [[ -f "/etc/system-release" ]]; then
+            minorVersion=$(awk -F "." '{print $2}' "/etc/system-release")
+        fi 
+    else
+        if [[ -f "/etc/os-release" ]]; then
+            minorVersion=$(grep "^VERSION_ID=" "/etc/os-release" | awk -F "=" '{print $2}' | tr -d '"' | awk -F "." '{print $2}')
         fi
     fi
 
@@ -247,11 +269,9 @@ function isCPSupportedPlatform() {
         if (( ${majorVersion} == 9 )); then 
             isSupported="true"
         fi
-    # Ubuntu (16.04, 16.10)
+    # Ubuntu (16.04)
     elif [[ "${distro}" == "ubuntu" ]]; then
         if (( ${majorVersion} == 16 && ${minorVersion} == 4 )); then
-            isSupported="true"
-        elif (( ${majorVersion} == 16 && ${minorVersion} == 10 )); then
             isSupported="true"
         fi
     fi 
@@ -336,13 +356,13 @@ function isDockerCEInstalled() {
 
     # CentOS/RHEL
     if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
-        if yum list installed "docker-ce"; then isInstalled="true"; fi 
+        if (( $(yum list installed "docker-ce" | grep -c "docker-ce") > 0 )) ; then isInstalled="true"; fi 
     # Fedora
     elif [[ "${distro}" == "fedora" ]]; then
-        if dnf list installed "docker-ce"; then isInstalled="true"; fi 
+        if (( $(dnf list installed "docker-ce" | grep -c "docker-ce") > 0 )) ; then isInstalled="true"; fi 
     # Debian/Ubuntu
     elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
-        if dpkg-query --list | grep "docker-ce"; then isInstalled="true"; fi 
+        if (( $(dpkg-query --list | grep -c "docker-ce") > 0 )); then isInstalled="true"; fi 
     fi
 
     echo "${isInstalled}"
