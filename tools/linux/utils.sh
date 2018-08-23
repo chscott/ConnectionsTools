@@ -4,6 +4,16 @@
 # Source prereqs
 . "/etc/ictools.conf"
 
+# Global variables
+CP_SUPPORTED_RELEASE="6.0.0.6"
+CP_DOCKER_SUPPORTED_RELEASE="17.03"
+CP_K8S_SUPPORTED_RELEASE="1.11"
+CP_CENTOS_SUPPORTED_RELEASE="7.x"
+CP_RHEL_SUPPORTED_RELEASE="7.x"
+CP_FEDORA_SUPPORTED_RELEASE="25"
+CP_DEBIAN_SUPPORTED_RELEASE="9"
+CP_UBUNTU_SUPPORTED_RELEASE="16.04"
+
 # Returns ID value from /etc/os-release or "unknown" if not found 
 function getDistro() {
 
@@ -238,6 +248,51 @@ function checkForK8sWorkerNodePortsInUse() {
 
 }
 
+# Prints an output table of requirements for installing Component Pack
+# $1: optional file descriptor for output
+function printCPRequirementsTable() {
+
+    local fd=${1}
+    local output="/dev/null"
+    local distro="$(getDistro)"
+
+    if [[ -n ${fd} && -w "/proc/${BASHPID}/fd/${fd}" ]]; then
+        # If a writable file descriptor was provided, sent the output there
+        output="/proc/${BASHPID}/fd/${fd}"
+    else
+        output="/proc/${BASHPID}/fd/1"
+    fi
+
+    printf "Component Pack ${CP_SUPPORTED_RELEASE} requirements:\n" >>"${output}"
+    printf "\n" >>"${output}"
+    printf "%-20s\t%-20s\t%-20s\n" "Requirement" "Found" "Requires" >>"${output}" 
+    printf "%-20s\t%-20s\t%-20s\n" "-----------" "-----" "--------" >>"${output}"
+    printf "%-20s\t%-20s\t%-20s\n" "Distro:" "${distro}" "centos, rhel*, fedora, debian or ubuntu" >>"${output}" 
+    if [[ "${distro}" == "centos" ]]; then
+        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_CENTOS_SUPPORTED_RELEASE}" >>"${output}"
+    elif [[ "${distro}" == "rhel" ]]; then
+        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_RHEL_SUPPORTED_RELEASE}" >>"${output}"
+    elif [[ "${distro}" == "fedora" ]]; then
+        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion)" "${CP_FEDORA_SUPPORTED_RELEASE}" >>"${output}"
+    elif [[ "${distro}" == "debian" ]]; then
+        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion)" "${CP_DEBIAN_SUPPORTED_RELEASE}" >>"${output}"
+    elif [[ "${distro}" == "ubuntu" ]]; then
+        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_UBUNTU_SUPPORTED_RELEASE}" >>"${output}"
+    fi
+    printf "%-20s\t%-20s\t%-20s\n" "Machine architecture:" "$(getMachineArchitecture)" "x86_64" >>"${output}" 
+    printf "%-20s\t%-20s\t%-20s\n" "Logical cores:" "$(getLogicalCores)" "At least 2" >>"${output}" 
+    printf "%-20s\t%-20s\t%-20s\n" "Available memory:" "$(getAvailableMemory)" "At least 2097152" >>"${output}"
+    printf "%-20s\t%-20s\t%-20s\n" "Total swap:" "$(getSwapMemory)" "Must be 0" >>"${output}"
+    printf "\n" >>"${output}"
+    if [[ "$(isCPSupportedPlatform)" == "true" ]]; then
+        local isSupported="Yes"
+    else
+        local isSupported="No"
+    fi
+    printf "%s %s\n" "Supported for Component Pack:" "${isSupported}" >>"${output}"
+
+}
+
 # Determines if this system is supported for Component Pack. Support is the intersection of support for Docker, K8s and Helm.
 # Docker 17.03 requirements: https://docs.docker.com/v17.03/engine/installation/linux/${distro}/#os-requirements
 # Kubernetes 1.11 requirements: https://github.com/kubernetes/website/blob/release-1.11/content/en/docs/tasks/tools/install-kubeadm.md
@@ -384,7 +439,7 @@ function getDockerCEVersion() {
             installedVersion="$(dnf -q list installed "docker-ce" | grep "docker-ce" | awk '{print $2}' | awk -F '.' '{print $1"."$2}')"
         # Debian/Ubuntu
         elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
-            installedVersion="$(if dpkg-query --list | grep "docker-ce" | awk '{print $3}' | awk -F '.' '{print $1"."$2}')"
+            installedVersion="$(dpkg-query --list | grep "docker-ce" | awk '{print $3}' | awk -F '.' '{print $1"."$2}')"
         fi
     else
         installedVersion="not installed"
@@ -394,7 +449,61 @@ function getDockerCEVersion() {
 
 }
 
-# Tests to make sure Kubernetes is available on this system
+# Checks to see if specified Kubernetes component is installed
+# $1: component (kubeadm, kubectl, kubelet)
+function isK8sComponentInstalled() {
+
+    local component="${1}"
+    local distro="$(getDistro)"
+    local isInstalled="false"
+
+    if [[ -n "${component}" ]]; then
+        # CentOS/RHEL
+        if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
+            if (( $(yum list installed "${component}" | grep -c "${component}") > 0 )) ; then isInstalled="true"; fi 
+        # Fedora
+        elif [[ "${distro}" == "fedora" ]]; then
+            if (( $(dnf list installed "${component}" | grep -c "${component}") > 0 )) ; then isInstalled="true"; fi 
+        # Debian/Ubuntu
+        elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
+            if (( $(dpkg-query --list | grep -c "${component}") > 0 )); then isInstalled="true"; fi 
+        fi
+    fi
+
+    echo "${isInstalled}"
+
+}
+
+# Returns the version of the specified Kubernetes component
+# $1: component (kubeadm, kubectl, kubelet)
+function getK8sComponentVersion() {
+
+    local component="${1}"
+    local distro="$(getDistro)"
+    local installedVersion=""
+
+    if [[ -n "${component}" ]]; then
+        if [[ "$(isK8sComponentInstalled "${component}")" == "true" ]]; then
+            # CentOS/RHEL
+            if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
+                installedVersion="$(yum -q list installed "${component}" | grep "${component}" | awk '{print $2}' | awk -F '.' '{print $1"."$2}')"
+            # Fedora
+            elif [[ "${distro}" == "fedora" ]]; then
+                installedVersion="$(dnf -q list installed "${component}" | grep "${component}" | awk '{print $2}' | awk -F '.' '{print $1"."$2}')"
+            # Debian/Ubuntu
+            elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
+                installedVersion="$(dpkg-query --list | grep "${component}" | awk '{print $3}' | awk -F '.' '{print $1"."$2}')"
+            fi
+        else
+            installedVersion="not installed"
+        fi
+    fi
+
+    echo "${installedVersion}"
+
+}
+
+# Tests to make sure Kubernetes is available on this system (obsoleted by isK8sComponentInstalled)
 function checkForK8s() {
 
     local script="$(basename "${0}")"
