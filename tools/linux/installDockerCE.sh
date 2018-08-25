@@ -9,10 +9,12 @@ function init() {
     # Redirect output to the log. Point 101 to the original 1 so some output can be sent to the terminal
     exec 101>&1
     exec 1>>"${logFile}" 2>&1
+    terminal="/proc/${BASHPID}/fd/101"
 
     # Source the prereqs
     scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     . "${scriptDir}/utils.sh"
+    . "/etc/ictools.conf"
 
     # Make sure we're running as root
     checkForRoot
@@ -51,7 +53,7 @@ function init() {
                 directLvmDevice="${value}"
                 shift;shift;;
             *)
-                printToConsole "Unrecognized argument ${key}"
+                printf "&s\n" "Unrecognized argument ${key}" >>"${terminal}"
                 exit 1
         esac
     done
@@ -75,53 +77,107 @@ function init() {
 
 }
 
-# Print the usage text to the console
+# Print the usage text to the terminal
 function usage() {
 
-    printToConsole "Usage: installDockerCE.sh [OPTIONS]"
-    printToConsole ""
-    printToConsole "Options:"
-    printToConsole ""
-    printToConsole "--check"
-    printToConsole ""
-    printToConsole "Checks the system to see if meets the requirement to install Component Pack components."
-    printToConsole ""
-    printToConsole "--force-rhel-install"
-    printToConsole ""
-    printToConsole "RHEL is not supported with Docker CE. Use this option to install anyway."
-    printToConsole ""
-    printToConsole "--force-aufs"
-    printToConsole ""
-    printToConsole "Override check for best storage driver and force the use of aufs."
-    printToConsole ""
-    printToConsole "--force-devicemapper"
-    printToConsole ""
-    printToConsole "Override check for best storage driver and force the use of devicemapper."
-    printToConsole ""
-    printToConsole "--direct-lvm-device <block device>"
-    printToConsole ""
-    printToConsole "Provide a block device to use for configuring devicemapper in the direct-lvm mode."
-    printToConsole "Include with --check to see if the system supports devicemapper with direct-lvm."
+    # Redirect FD 1 to terminal so each line doesn't have to be redirected
+    exec 1>>"${terminal}"
+
+    printf "%s\n" "Usage: installDockerCE.sh [OPTIONS]" 
+    printf "%s\n" ""
+    printf "%s\n" "Options:"
+    printf "%s\n" ""
+    printf "%s\n" "--check"
+    printf "%s\n" "  Checks the system to see if meets the requirement to install Component Pack components."
+    printf "%s\n" ""
+    printf "%s\n" "--force-rhel-install"
+    printf "%s\n" "  RHEL is not supported with Docker CE. Use this option to install anyway."
+    printf "%s\n" ""
+    printf "%s\n" "--force-aufs"
+    printf "%s\n" "  Override check for best storage driver and force the use of aufs."
+    printf "%s\n" ""
+    printf "%s\n" "--force-devicemapper"
+    printf "%s\n" "  Override check for best storage driver and force the use of devicemapper."
+    printf "%s\n" ""
+    printf "%s\n" "--direct-lvm-device <block device>"
+    printf "%s\n" "  Provide a block device to use for configuring devicemapper in the direct-lvm mode."
+    printf "%s\n" "  Include with --check to see if the system supports devicemapper with direct-lvm."
+
+    # Redirect FD 1 back to the log file
+    exec 1>>"${logFile}"
 
 }
 
-# Print to the console (and to the log)
-function printToConsole() {
-
-    local message="${1}"
-
-	printf "%s\n" "${message}" >&101
-    printToLog "${message}"
-
-}
-
-# Print to the log
+# Print to the log (just the log)
 function printToLog() {
 
     local message="${1}"
     local now="$(date '+%F %T')"
 
-	printf "%s %s\n" "${now}" "${message}" >>"${logFile}"
+    printf "%s\n" "${now} ${message}"
+
+}
+
+# Print the operation
+function operation() {
+
+    local message="${1}"
+    local now="$(date '+%F %T')"
+    local leftAlign="%-120.120s"
+
+    # To terminal
+    printf "${leftAlign}" "${now} ${message}" >>"${terminal}"
+
+    # To log
+    printToLog "${now} ${message}"
+
+}
+
+# Print a failure message
+function fail() {
+
+    local redText=$'\e[1;31m'
+    local normalText=$'\e[0m'
+    local rightAlign="%-6s\n\n"
+
+    # To terminal
+    printf "${rightAlign}" "${redText}Failed${normalText}" >>"${terminal}"
+    printf "%s\n" "Review ${logFile} for additional details" >>"${terminal}"
+
+    # To log
+    printToLog "Operation failed"
+    
+    exit 1
+
+}
+
+# Print a warning message
+function warn() {
+
+    local yellowText=$'\e[1;33m'
+    local normalText=$'\e[0m'
+    local rightAlign="%-7s\n"
+
+    # To terminal
+    printf "${rightAlign}" "${yellowText}Warning${normalText}" >>"${terminal}"
+    
+    # To log
+    printToLog "Operation completed with warnings"
+
+}
+
+# Print a success message
+function pass() {
+
+    local greenText=$'\e[1;32m'
+    local normalText=$'\e[0m'
+    local rightAlign="%-9s\n"
+
+    # To terminal
+    printf "${rightAlign}" "${greenText}Completed${normalText}" >>"${terminal}"
+
+    # To log
+    printToLog "Operation completed successfully"
 
 }
 
@@ -130,8 +186,8 @@ function exitWithError() {
 
     local message="${1}"
 
-    printToConsole "${message}."
-    printToConsole "Review ${logFile} for additional details"
+    printf "%s\n" "${message}" | tee "${terminal}"
+    printf "%s\n" "Review ${logFile} for additional details" | tee "${terminal}"
     exit 1
 
 }
@@ -141,7 +197,7 @@ function exitWithoutError() {
 
     local message="${1}"
 
-    printToConsole "${message}"
+    printf "%s\n" "${message}" | tee "${terminal}" 
     exit 0
 
 }
@@ -149,29 +205,31 @@ function exitWithoutError() {
 # Print a table of requirements if the user requested it via the --check option
 function checkForRequirements() {
 
+    local distro="$(getDistro)"
     local canUseOverlay2="$(canUseOverlay2StorageDriver)"
     local canUseAufs="$(canUseAufsStorageDriver)"
     local canUseDMDirect="$(canUseDMDirectStorageDriver)"
+    local format="%-20s\t%-20s\n"
 
-    # Format for output
+    # Format values for nicer output
     if [[ "${canUseOverlay2}" == "true" ]]; then canUseOverlay2="Yes"; else canUseOverlay2="No"; fi
     if [[ "${canUseAufs}" == "true" ]]; then canUseAufs="Yes"; else canUseAufs="No"; fi
     if [[ "${canUseDMDirect}" == "true" ]]; then canUseDMDirect="Yes"; else canUseDMDirect="No"; fi
 
-    # Pass the file descriptor that points to the terminal
-    printCPRequirementsTable "101"
+    # Pass the file to print to
+    printCPRequirementsTable "${terminal}"
 
-    printf "\n" >&101
-    printf "%-20s\t%-20s\n" "Storage driver" "Available" >&101
-    printf "%-20s\t%-20s\n" "--------------" "---------" >&101
-    printf "%-20s\t%-20s\n" "overlay2" "${canUseOverlay2}" >&101
-    printf "%-20s\t%-20s\n" "aufs" "${canUseAufs}" >&101
-    printf "%-20s\t%-20s\n" "devicemapper-direct" "${canUseDMDirect}" >&101
-    printf "%-20s\t%-20s\n" "devicemapper-loop" "Yes" >&101
-    printf "\n" >&101
+    printf "\n" >>"${terminal}" 
+    printf "${format}" "Storage driver" "Available" >>"${terminal}"
+    printf "${format}" "--------------" "---------" >>"${terminal}"
+    printf "${format}" "overlay2" "${canUseOverlay2}" >>"${terminal}"
+    printf "${format}" "aufs" "${canUseAufs}" >>"${terminal}"
+    printf "${format}" "devicemapper-direct" "${canUseDMDirect}" >>"${terminal}"
+    printf "${format}" "devicemapper-loop" "Yes" >>"${terminal}"
+    printf "\n" >>"${terminal}"
 
     if [[ "${distro}" == "rhel" ]]; then
-        printf "*RHEL is not supported with Docker CE. You can install it anyway using the --force-rhel-install option.\n" >&101
+        printf "%s\n" "*RHEL is not supported with Docker CE. You can install it anyway using the --force-rhel-install option." >>"${terminal}" 
     fi
 
 }
@@ -179,25 +237,17 @@ function checkForRequirements() {
 # Test prereqs for install. Any checks that do not pass exit immediately
 function checkForPrereqs() {
 
-    printToConsole "Checking to ensure system has all prerequisites in place to install Docker CE..."
-
     # Check the platform requirements
-    printToLog "Checking to see if platform meets requirements to install Component Pack..."
-    if [[ "$(isCPSupportedPlatform)" == "false" ]]; then 
-        exitWithError "Requirements not met to install Component Pack. Use the --check option to print requirements"
-    fi
+    operation "Checking to see if platform meets requirements to install Component Pack..."
+    if [[ "$(isCPSupportedPlatform)" == "false" ]]; then fail; else pass; fi
     
     # Verify Docker is not already installed
-    printToLog "Checking to see if Docker CE is already installed..."
-    if [[ "$(isDockerCEInstalled)" == "true" ]]; then 
-        exitWithError "Docker CE is already installed"
-    fi
+    operation "Checking to see if Docker CE is already installed..."
+    if [[ "$(isDockerCEInstalled)" == "true" ]]; then fail; else pass; fi
 
     # Verify ${dockerDataDir} does not exist
-    printToLog "Checking to see if ${dockerDataDir} exists..."
-    if [[ -d "${dockerDataDir}" ]]; then
-        exitWithError "The ${dockerDataDir} directory already exists on this system. Back up and remove it before proceeding with the install"
-    fi
+    operation "Checking to see if ${dockerDataDir} exists..."
+    if [[ -d "${dockerDataDir}" ]]; then fail; else pass; fi
 
 }
 
@@ -205,6 +255,7 @@ function checkForPrereqs() {
 function checkForObsoletePackages() {
 
     local distro="$(getDistro)"
+    local foundObsoletePackage="false"
     local obsoletePackages=( 
         "container-selinux"
         "docker" 
@@ -221,25 +272,23 @@ function checkForObsoletePackages() {
         "docker-engine" 
     )
 
+    operation "Checking to ensure no obsolete Docker packages are installed..."
+
     for obsoletePackage in "${obsoletePackages[@]}"; do
-        printToLog "Checking to see if obsolete package ${obsoletePackage} is installed..."
+        printToLog "Checking package ${obsoletePackage}..."
         # yum
         if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
-            if yum list installed "${obsoletePackage}"; then 
-                exitWithError "Package ${obsoletePackage} is installed. Run uninstallDocker.sh to remove obsolete packages"
-            fi
+            if yum list installed "${obsoletePackage}"; then foundObsoletePackage="true"; fi
         # dnf
         elif [[ "${distro}" == "fedora" ]]; then
-            if dnf list installed "${obsoletePackage}"; then 
-                exitWithError "Package ${obsoletePackage} is installed. Run uninstallDocker.sh to remove obsolete packages"
-            fi
+            if dnf list installed "${obsoletePackage}"; then foundObsoletePackage="true"; fi
         # apt
         elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
-            if dpkg-query --list "${obsoletePackage}"; then 
-                exitWithError "Package ${obsoletePackage} is installed. Run uninstallDocker.sh to remove obsolete packages"
-            fi
+            if dpkg-query --list "${obsoletePackage}"; then foundObsoletePackage="true"; fi
         fi
     done
+
+    if [[ "${foundObsoletePackage}" == "true" ]]; then fail; else pass; fi
 
 }
 
@@ -266,7 +315,7 @@ function canUseOverlay2StorageDriver() {
                         canUseOverlay2="true"
                     fi
                 fi
-            elif (( ${osMajorVersion}== 7 && ${osMinorVersion} == 1 )); then
+            elif (( ${osMajorVersion} == 7 && ${osMinorVersion} == 1 )); then
                 if [[ "${fsType}" == "ext4" ]]; then
                     canUseOverlay2="true"
                 fi
@@ -331,7 +380,7 @@ function canUseDMDirectStorageDriver() {
     # A --direct-lvm-device device must have been provided
     if [[ -n "${directLvmDevice}" ]]; then
         # If lsblk isn't available, we can't continue checking, so devicemapper-direct can't be used
-        if command -v lsblk >/dev/null 2>&1; then
+        if [[ "$(commandExists "lsblk")" == "true" ]]; then
             # Get the number of devices returned by the lsblk command for this device (includes dependent devices like partitions)
             local deviceCount=$(lsblk --noheadings --output NAME "${directLvmDevice}" | wc -l)
             # Get the type for this device
@@ -345,7 +394,9 @@ function canUseDMDirectStorageDriver() {
             # Device must be a disk or partition with a device count of 1 (no dependent devices) and have no filesystem
             if [[ ("${deviceType}" == "disk" || "${deviceType}" == "part") && "${deviceCount}" == 1 && "${deviceFSType}" == "<null>" ]]; then
                 # Make sure there are no lvm PV/VG/LV conflicts
-                if command -v pvdisplay >/dev/null 2>&1 && command -v vgdisplay >/dev/null 2>&1 && command -v lvdisplay >/dev/null 2>&1; then
+                if [[ "$(commandExists "pvdisplay")" == "true" && 
+                      "$(commandExists "vgdisplay")" == "true" &&
+                      "$(commandExists "lvdisplay")" == "true" ]]; then
                     printToLog "Checking to see if there are any physical volumes named ${directLvmDevice}..."
                     if ! pvdisplay "${directLvmDevice}"; then
                         printToLog "Checking to see if there are any volume groups named 'docker'..."
@@ -462,12 +513,14 @@ function determineStorageDriver() {
     # Handle user confirmation
     local answer=""
 
+    # Redirect FD 1 to terminal so each line in the prompting section below doesn't have to be redirected
+    exec 1>>"${terminal}"
+
     # --force-devicemapper was specified but devicemapper-direct cannot be configured
     if [[ "${forceDMStorageDriver}" == "true" && "${canUseDMDirect}" == "false" ]]; then
-        printToConsole "WARNING! The --force-devicemapper option was provided, but devicemapper-direct cannot be configured. Docker strongly discourages"
-        printToConsole "using devicemapper-loop for production workloads."
-        printToConsole ""
-        read -p "To continue installation with ${selectedStorageDriver}, type 'yes' and press Enter: " answer 2>&101
+        printf "%s" "WARNING! The --force-devicemapper option was provided, but devicemapper-direct cannot be configured. "
+        printf "%s\n\n" "Docker strongly discourages using devicemapper-loop for production workloads."
+        read -p "To continue installation with ${selectedStorageDriver}, type 'yes' and press Enter: " answer
         if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then
             printToLog "Continuing install with ${selectedStorageDriver} driver..."
         else
@@ -476,9 +529,8 @@ function determineStorageDriver() {
 
     # --force-aufs was specified but is not supported
     elif [[ "${forceAufsStorageDriver}" == "true" && "${canUseAufs}" == "false" ]]; then
-        printToConsole "WARNING! The --force-aufs option was provided, but aufs is not supported on this system."
-        printToConsole ""
-        read -p "To continue installation with ${selectedStorageDriver}, type 'yes' and press Enter: " answer 2>&101
+        printf "%s\n\n" "WARNING! The --force-aufs option was provided, but aufs is not supported on this system. "
+        read -p "To continue installation with ${selectedStorageDriver}, type 'yes' and press Enter: " answer
         if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then
             printToLog "Continuing install with ${selectedStorageDriver} driver..."
         else
@@ -488,10 +540,10 @@ function determineStorageDriver() {
     # --direct-lvm-device was specified, it can be configured, but overlay2 or aufs were selected
     elif [[ -n "${directLvmDevice}" && "${canUseDMDirect}" == "true" && 
               ("${selectedStorageDriver}" == "overlay2" || "${selectedStorageDriver}" == "aufs")  ]]; then
-        printToConsole "WARNING! The ${selectedStorageDriver} driver has been selected because it is recommended by Docker. However, this system can also"
-        printToConsole "be configured with devicemapper-direct. To force the use of devicemapper-direct, add the --force-devicemapper option."
-        printToConsole ""
-        read -p "To continue installation with ${selectedStorageDriver}, type 'yes' and press Enter: " answer 2>&101
+        printf "%s" "WARNING! The ${selectedStorageDriver} driver has been selected because it is recommended by Docker. "
+        printf "%s" "However, this system can also be configured with devicemapper-direct. To force the use of devicemapper-direct, "
+        printf "%s\n\n" "add the --force-devicemapper option."
+        read -p "To continue installation with ${selectedStorageDriver}, type 'yes' and press Enter: " answer
         if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then
             printToLog "Continuing install with ${selectedStorageDriver} storage driver..."
         else
@@ -501,10 +553,9 @@ function determineStorageDriver() {
     # --direct-lvm-device was specified, it cannot be configured, and overlay2 or aufs were selected
     elif [[ -n "${directLvmDevice}" && "${canUseDMDirect}" == "false" &&
               ("${selectedStorageDriver}" == "overlay2" || "${selectedStorageDriver}" == "aufs") ]]; then
-        printToConsole "WARNING! The ${selectedStorageDriver} driver has been selected because it is recommended by Docker and because"
-        printToConsole "this system cannot be configured with devicemapper-direct."
-        printToConsole ""
-        read -p "To continue installation with ${selectedStorageDriver}, type 'yes' and press Enter: " answer 2>&101
+        printf "%s" "WARNING! The ${selectedStorageDriver} driver has been selected because it is recommended by Docker and because "
+        printf "%s\n\n" "this system cannot be configured with devicemapper-direct."
+        read -p "To continue installation with ${selectedStorageDriver}, type 'yes' and press Enter: " answer
         if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then
             printToLog "Continuing install with ${selectedStorageDriver} storage driver..."
         else
@@ -513,9 +564,8 @@ function determineStorageDriver() {
 
     # --direct-lvm-device was specified, it can be configured, and devicemapper-direct was selected
     elif [[ -n "${directLvmDevice}" && "${canUseDMDirect}" == "true" && "${selectedStorageDriver}" == "devicemapper-direct" ]]; then
-        printToConsole "WARNING! The ${selectedStorageDriver} driver has been selected. All existing data on ${directLvmDevice} will be destroyed."
-        printToConsole ""
-        read -p "To continue installation with ${selectedStorageDriver}, type 'yes' and press Enter: " answer 2>&101
+        printf "%s\n\n" "WARNING! The ${selectedStorageDriver} driver has been selected. All existing data on ${directLvmDevice} will be destroyed."
+        read -p "To continue installation with ${selectedStorageDriver}, type 'yes' and press Enter: " answer
         if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then
             printToLog "Continuing install with ${selectedStorageDriver} storage driver..."
         else
@@ -524,10 +574,9 @@ function determineStorageDriver() {
 
     # --direct-lvm-device was specified, it cannot be configured, and devicemapper-loop was selected
     elif [[ -n "${directLvmDevice}" && "${canUseDMDirect}" == "false" && "${selectedStorageDriver}" == "devicemapper-loop" ]]; then
-        printToConsole "WARNING! The ${selectedStorageDriver} driver has been selected because this system cannot be configured with"
-        printToConsole "devicemapper-direct. Docker strongly discourages using ${selectedStorageDriver} for production workloads."
-        printToConsole ""
-        read -p "To continue installation with ${selectedStorageDriver}, type 'yes' and press Enter: " answer 2>&101
+        printf "%s" "WARNING! The ${selectedStorageDriver} driver has been selected because this system cannot be configured with "
+        printf "%s\n\n" "devicemapper-direct. Docker strongly discourages using ${selectedStorageDriver} for production workloads."
+        read -p "To continue installation with ${selectedStorageDriver}, type 'yes' and press Enter: " answer
         if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then
             printToLog "Continuing install with ${selectedStorageDriver} storage driver..."
         else
@@ -536,16 +585,18 @@ function determineStorageDriver() {
 
     # Do a final confirmation if we get this far and devicemapper-loop is the selected driver
     elif [[ "${selectedStorageDriver}" == "devicemapper-loop" ]]; then
-        printToConsole "WARNING! The ${selectedStorageDriver} driver has been selected. Docker strongly discourages using ${selectedStorageDriver}"
-        printToConsole "for production workloads."
-        printToConsole ""
-        read -p "To continue installation with ${selectedStorageDriver}, type 'yes' and press Enter: " answer 2>&101
+        printf "%s" "WARNING! The ${selectedStorageDriver} driver has been selected. Docker strongly discourages using ${selectedStorageDriver} "
+        printf "%s\n\n" "for production workloads."
+        read -p "To continue installation with ${selectedStorageDriver}, type 'yes' and press Enter: " answer
         if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then
             printToLog "Continuing install with ${selectedStorageDriver} storage driver..."
         else
             exitWithoutError "Aborting Docker CE install"
         fi
     fi
+
+    # Redirect FD 1 back to the log file
+    exec 1>>"${logFile}"
 
 }
 
@@ -554,8 +605,6 @@ function install() {
 
     local distro="$(getDistro)"
     local version=""
-
-    printToConsole "Installing Docker CE..."
 
     # CentOS/RHEL
     if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
@@ -570,21 +619,21 @@ function install() {
         fi
 
         # Install prereqs
-        printToLog "Installing prerequisite packages..."
+        operation "Installing prerequisite packages..."
         yum -y --enablerepo "${baseRepo}" install \
             "device-mapper-persistent-data" \
             "lvm2" \
             "yum-plugin-versionlock" \
             "yum-utils" \
-            || exitWithError "Failed to install prerequisite packages"
+            && pass || fail
 
         # Add Docker CE repo
-        printToLog "Adding Docker CE repo..."
-        yum-config-manager --add-repo "https://download.docker.com/linux/centos/docker-ce.repo" || exitWithError "Failed to add docker-ce repo"
+        operation "Adding Docker CE repo..."
+        yum-config-manager --add-repo "https://download.docker.com/linux/centos/docker-ce.repo" && pass || fail
 
         # Update the package index
-        printToLog "Updating package index..."
-        yum -y makecache fast || exitWithError "Failed to update the package index"
+        operation "Updating package index..."
+        yum -y makecache fast && pass || fail
 
         # Get the latest version of docker target
         printToLog "Getting the latest version of Docker CE target installation version ${CP_DOCKER_SUPPORTED_RELEASE}..."
@@ -597,32 +646,32 @@ function install() {
         printToLog "Latest version available: ${version}"
 
         # Install Docker CE
-        printToLog "Performing Docker CE install..."
-        yum -y --enablerepo "${extrasRepo}" --setopt=obsoletes=0 install "docker-ce-${version}" || exitWithError "Failed to install Docker CE components"
+        operation "Performing Docker CE install..."
+        yum -y --enablerepo "${extrasRepo}" --setopt=obsoletes=0 install "docker-ce-${version}" && pass || fail
 
         # Lock the Docker CE package
-        printToLog "Locking the docker-ce package to prevent auto-update..."
-        yum versionlock add "docker-ce"
+        operation "Locking the docker-ce package to prevent auto-update..."
+        yum versionlock add "docker-ce" && pass || fail
 
     # Fedora
     elif [[ "${distro}" == "fedora" ]]; then
 
         # Install prereqs
-        printToLog "Installing prerequisite packages..."
+        operation "Installing prerequisite packages..."
         dnf -y --enablerepo "fedora" install \
             "device-mapper-persistent-data" \
             "dnf-plugins-core" \
             "lvm2" \
             "dnf-plugins-extras-versionlock" \
-            || exitWithError "Failed to install prerequisite packages"
+            && pass || fail
 
         # Add Docker CE repo
-        printToLog "Adding Docker CE repo..."
-        dnf -y config-manager --add-repo "https://download.docker.com/linux/fedora/docker-ce.repo" || exitWithError "Failed to add docker-ce repo"
+        operation "Adding Docker CE repo..."
+        dnf -y config-manager --add-repo "https://download.docker.com/linux/fedora/docker-ce.repo" && pass || fail
 
         # Update the yum package index
-        printToLog "Updating package index..."
-        dnf -y makecache fast || exitWithError "Failed to update the package index"
+        operation "Updating package index..."
+        dnf -y makecache fast && pass || fail
 
         # Get the latest version of docker target
         printToLog "Getting the latest version of Docker CE target installation version ${CP_DOCKER_SUPPORTED_RELEASE}..."
@@ -635,18 +684,18 @@ function install() {
         printToLog "Latest version available: ${version}"
 
         # Install Docker CE
-        printToLog "Performing Docker CE install..."
-        dnf -y install "docker-ce-${version}" || exitWithError "Failed to install Docker CE components"
+        operation "Performing Docker CE install..."
+        dnf -y install "docker-ce-${version}" && pass || fail
 
         # Lock the Docker CE package
-        printToLog "Locking the docker-ce package to prevent auto-update..."
-        dnf versionlock add "docker-ce"
+        operation "Locking the docker-ce package to prevent auto-update..."
+        dnf versionlock add "docker-ce" && pass || fail
 
     # Debian/Ubuntu
     elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
 
         # Install prereqs
-        printToLog "Installing prerequisite packages..."
+        operation "Installing prerequisite packages..."
         apt-get -y install \
             "apt-transport-https" \
             "ca-certificates" \
@@ -655,20 +704,19 @@ function install() {
             "lvm2" \
             "software-properties-common" \
             "thin-provisioning-tools" \
-            || exitWithError "Failed to install prerequisite packages"
+            && pass || fail
 
         # Add Docker GPG key
-        printToLog "Adding Docker GPG key to apt..."
-        curl -fsSL "https://download.docker.com/linux/${distro}/gpg" | apt-key add - || exitWithError "Failed to add Docker GPG key"
+        operation "Adding Docker GPG key to apt..."
+        curl -fsSL "https://download.docker.com/linux/${distro}/gpg" | apt-key add - && pass || fail
 
         # Add Docker repo
-        printToLog "Adding Docker CE repo..."
-        add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/${distro} $(lsb_release -cs) stable" ||
-            exitWithError "Failed to add Docker repo"
+        operation "Adding Docker CE repo..."
+        add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/${distro} $(lsb_release -cs) stable" && pass || fail
 
         # Update the apt package index
-        printToLog "Updating package index..."
-        apt-get -y update || exitWithError "Failed to update the package index"
+        operation "Updating package index..."
+        apt-get -y update && pass || fail
 
         # Get the latest version of docker target
         printToLog "Getting the latest version of Docker CE target installation version ${CP_DOCKER_SUPPORTED_RELEASE}..."
@@ -681,22 +729,18 @@ function install() {
         printToLog "Latest version available: ${version}"
 
         # Install Docker CE
-        printToLog "Performing Docker CE install..."
-        apt-get install -y "docker-ce=${version}" || exitWithError "Failed to install Docker CE components"
+        operation "Performing Docker CE install..."
+        apt-get install -y "docker-ce=${version}" && pass || fail
 
         # Lock the Docker CE package
-        printToLog "Locking the docker-ce package to prevent auto-update..."
-        apt-mark hold "docker-ce"
+        operation "Locking the docker-ce package to prevent auto-update..."
+        apt-mark hold "docker-ce" && pass || fail
 
     fi
 
     # Stop Docker if it was started automatically following installed (happens on Debian, for example). Needs to be stopped to config storage driver
-    printToLog "Stopping Docker..."
-    if command -v systemctl >/dev/null 2>&1; then
-        systemctl stop "docker"
-    fi
-
-    printToConsole "Docker CE successfully installed"
+    operation "Stopping Docker to configure storage driver..."
+    systemctl stop "docker" && pass || fail
 
 }
 
@@ -733,7 +777,37 @@ function configOverlay2() {
     else
         # If the file already exists, create a backup
         local tmpConfigFile=$(mktemp ${dockerConfigDir}/daemon.json.XXX)
-        printToConsole "An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
+        printToLog "WARNING: An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
+        mv "${configFile}" "${tmpConfigFile}"
+        printf "${configFileConfig}" >"${configFile}"
+    fi
+
+}
+
+# Configure aufs
+function configAufs() {
+
+    local configFile="${dockerConfigDir}/daemon.json"
+    local configFileConfig=""
+
+    configFileConfig+="{\n"
+    configFileConfig+="\t\"storage-driver\": \"aufs\"\n"
+    configFileConfig+="}\n"
+
+    printToLog "Configuring aufs storage driver..."
+
+    # In some cases ${dockerConfigDir} doesn't exist at this point, so create it
+    if [[ ! -d "${dockerConfigDir}" ]]; then 
+        mkdir "${dockerConfigDir}"
+    fi
+
+    # See if the config file already exists
+    if [[ ! -f "${configFile}" ]]; then
+       printf "${configFileConfig}" >"${configFile}"
+    else
+        # If the file already exists, create a backup
+        local tmpConfigFile=$(mktemp ${dockerConfigDir}/daemon.json.XXX)
+        printToLog "WARNING: An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
         mv "${configFile}" "${tmpConfigFile}"
         printf "${configFileConfig}" >"${configFile}"
     fi
@@ -746,23 +820,22 @@ function configDirectLvm() {
     printToLog "Configuring devicemapper-direct storage driver..."
 
     # Create the Physical Volume
-    printToLog "Creating PV ${directLvmDevice}..."
-    pvcreate -y "${directLvmDevice}" || exitWithError "Failed to create ${directLvmDevice} PV"
+    operation "Creating Physical Volume ${directLvmDevice}..."
+    pvcreate -y "${directLvmDevice}" && pass || fail
 
     # Create the Volume Group
-    printToLog "Creating VG docker..."
-    vgcreate -y "docker" "${directLvmDevice}" || exitWithError "Failed to create docker VG"
+    operation "Creating Volume Group docker..."
+    vgcreate -y "docker" "${directLvmDevice}" && pass || fail
 
     # Create the Logical Volumes
-    printToLog "Creating LV thinpool..."
-    lvcreate -y --wipesignatures "y" --name "thinpool" --extents "95%VG" "docker" || exitWithError "Failed to create thinpool LV"
-    printToLog "Creating LV thinpoolmeta..."
-    lvcreate -y --wipesignatures "y" --name "thinpoolmeta" --extents "1%VG" "docker" || exitWithError "Failed to create thinpoolmeta LV"
+    operation "Creating LV thinpool..."
+    lvcreate -y --wipesignatures "y" --name "thinpool" --extents "95%VG" "docker" && pass || fail
+    operation "Creating LV thinpoolmeta..."
+    lvcreate -y --wipesignatures "y" --name "thinpoolmeta" --extents "1%VG" "docker" && pass || fail
 
     # Convert the Logical Volumes to thin pools
-    printToLog "Converting LVs to thin pool..."
-    lvconvert -y --zero "n" --chunksize "512K" --thinpool "docker/thinpool" --poolmetadata "docker/thinpoolmeta" ||
-        exitWithError "Failed to convert LVs to thin pool"
+    operation "Converting LVs to thin pool..."
+    lvconvert -y --zero "n" --chunksize "512K" --thinpool "docker/thinpool" --poolmetadata "docker/thinpoolmeta" && pass || fail
 
     # Create the LVM profile
     printToLog "Creating LVM profile..."
@@ -778,18 +851,18 @@ function configDirectLvm() {
     else
         # If the file already exists, create a backup
         local tmpLvmProfile=$(mktemp /etc/lvm/profile/docker-thinpool.profile.XXX)
-        printToConsole "An existing ${lvmProfile} was found. Backing it up as ${tmpLvmProfile} and creating a new one..." 
+        printToLog "WARNING: An existing ${lvmProfile} was found. Backing it up as ${tmpLvmProfile} and creating a new one..." 
         mv "${lvmProfile}" "${tmpLvmProfile}"
         printf "${lvmProfileConfig}" >"${lvmProfile}" 
     fi
 
     # Apply the LVM profile
-    printToLog "Applying LVM profile..."
-    lvchange -y --metadataprofile "docker-thinpool" "docker/thinpool" || exitWithError "Failed to apply LVM profile"
+    operation "Applying LVM profile..."
+    lvchange -y --metadataprofile "docker-thinpool" "docker/thinpool" && pass || fail
 
     # Enable monitoring for Logical Volumes
-    printToLog "Enabling monitoring for LVs..."
-    lvs -y --options "+seg_monitor" || exitWithError "Failed to enable LVs for monitoring"
+    operation "Enabling monitoring for LVs..."
+    lvs -y --options "+seg_monitor" && pass || fail
 
     # Configure Docker to use devicemapper-direct
     printToLog "Configuring devicemapper-direct storage driver..."
@@ -812,7 +885,7 @@ function configDirectLvm() {
     else
         # If the file already exists, create a backup
         local tmpConfigFile=$(mktemp ${dockerConfigDir}/daemon.json.XXX)
-        printToConsole "An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
+        printToLog "WARNING: An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
         mv "${configFile}" "${tmpConfigFile}"
         printf "${configFileConfig}" >"${configFile}"
     fi
@@ -842,37 +915,7 @@ function configLoopLvm() {
     else
         # If the file already exists, create a backup
         local tmpConfigFile=$(mktemp ${dockerConfigDir}/daemon.json.XXX)
-        printToConsole "An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
-        mv "${configFile}" "${tmpConfigFile}"
-        printf "${configFileConfig}" >"${configFile}"
-    fi
-
-}
-
-# Configure aufs (stub function in case configuration is required at some point)
-function configAufs() {
-
-    local configFile="${dockerConfigDir}/daemon.json"
-    local configFileConfig=""
-
-    configFileConfig+="{\n"
-    configFileConfig+="\t\"storage-driver\": \"aufs\"\n"
-    configFileConfig+="}\n"
-
-    printToLog "Configuring aufs storage driver..."
-
-    # In some cases ${dockerConfigDir} doesn't exist at this point, so create it
-    if [[ ! -d "${dockerConfigDir}" ]]; then 
-        mkdir "${dockerConfigDir}"
-    fi
-
-    # See if the config file already exists
-    if [[ ! -f "${configFile}" ]]; then
-       printf "${configFileConfig}" >"${configFile}"
-    else
-        # If the file already exists, create a backup
-        local tmpConfigFile=$(mktemp ${dockerConfigDir}/daemon.json.XXX)
-        printToConsole "An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
+        printToLog "WARNING: An existing ${configFile} was found. Backing it up as ${tmpConfigFile} and creating a new one..." 
         mv "${configFile}" "${tmpConfigFile}"
         printf "${configFileConfig}" >"${configFile}"
     fi
@@ -897,14 +940,10 @@ function configStorageDriver() {
 # Configure systemd to automatically start docker
 function configAutoStart() {
 
-    if command -v systemctl >/dev/null 2>&1; then
-        printToLog "Enabling auto-start for docker..."
-        systemctl enable "docker" || printToConsole "Failed to enable docker for auto-start. Manual configuration required"
-        printToConsole "Starting docker..."
-        systemctl start "docker" || printToConsole "Failed to start docker. Manual start required"
-    else
-        printToConsole "This system does not use systemd. Manually configure docker to start"
-    fi
+    operation "Enabling auto-start for docker..."
+    systemctl enable "docker" && pass || fail
+    operation "Starting docker..."
+    systemctl start "docker" && pass || fail
 
 }
 
@@ -923,5 +962,5 @@ else
     configAutoStart
     printToLog "Printing Docker configuration..."
     docker info
-    printToConsole "Run 'sudo docker run hello-world' to confirm Docker is working normally"
+    printf "\n%s\n" "Docker CE has been installed successfully! Run 'sudo docker run hello-world' to confirm normal operation." >>"${terminal}"
 fi 

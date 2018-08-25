@@ -19,6 +19,8 @@ function init() {
 
     # Process the user arguments and set global variables
     checkRequirements="false"
+    isMasterNode="false"
+    k8sConfigFile="/etc/kubernetes/admin.conf"
 
     while [[ ${#} > 0 ]]; do
         local key="${1}"
@@ -30,6 +32,9 @@ function init() {
                 shift;;
             --check)
                 checkRequirements="true"
+                shift;;
+            --master-node)
+                isMasterNode="true"
                 shift;;
             *)
                 printToConsole "Unrecognized argument ${key}"
@@ -47,13 +52,17 @@ function init() {
 # Print the usage text to the console
 function usage() {
 
-    printToConsole "Usage: installDockerCE.sh [OPTIONS]"
+    printToConsole "Usage: installKubernetes.sh [OPTIONS]"
     printToConsole ""
     printToConsole "Options:"
     printToConsole ""
     printToConsole "--check"
     printToConsole ""
     printToConsole "Checks the system to see if meets the requirement to install Component Pack components."
+    printToConsole ""
+    printToConsole "--master-node"
+    printToConsole ""
+    printToConsole "Designate this as the master node for the Kubernetes cluster."
 
 }
 
@@ -143,8 +152,8 @@ function install() {
 
     # Disable SELinux if enabled
     printToLog "Disabling SELinux..."
-    if command -v setenforce >/dev/null 2>&1; 
-        then setenforce 0
+    if [[ "$(commandExists "setenforce")" == "true" ]]; then
+        setenforce 0
     fi
 
     # CentOS/RHEL/Fedora
@@ -237,14 +246,139 @@ function install() {
 # Configure systemd to automatically start kubelet
 function configAutoStart() {
 
-    if command -v systemctl >/dev/null 2>&1; then
+    if [[ "$(commandExists "systemctl")" == "true" ]]; then
         printToLog "Enabling auto-start for kubelet..."
-        systemctl enable "kubelet" || printToConsole "Failed to enable kubelet for auto-start. Manual configuration required"
+        systemctl enable "kubelet" || printToConsole "WARNING: Failed to enable kubelet for auto-start. Manual configuration required"
         printToConsole "Starting kubelet..."
-        systemctl start "kubelet" || printToConsole "Failed to start kubelet. Manual start required"
+        systemctl start "kubelet" || printToConsole "WARNING: Failed to start kubelet. Manual start required"
     else
-        printToConsole "This system does not use systemd. Manually configure kubelet to start"
+        printToConsole "WARNING: Unable to configure auto-start for kubelet because systemctl command was not found" 
     fi
+
+}
+
+# Set up this node as the master node
+function configMasterNode() {
+
+    local distro="$(getDistro)"
+    local thisNode="$(uname -n)"
+
+    printToConsole "Configuring node ${thisNode} as the master node..." 
+
+    # Configure the firewall
+    if [[ "${distro}" == "centos" || "${distro}" == "rhel" || "${distro}" == "fedora" ]]; then
+        if [[ "$(commandExists "firewall-cmd")" == "true" ]]; then
+            # firewall-cmd uses a dash for ranges
+            local masterNodePorts=("6443" "2379-2380" "10250-10252")
+            for masterNodePort in "${masterNodePorts[@]}"; do
+                printToLog "Opening port(s) ${masterNodePort}..."
+                firewall-cmd "--add-port=${masterNodePort}/tcp" --permanent || 
+                    printToConsole "WARNING! Unable to open firewall port ${masterNodePort}. Manual configuration required"             
+            done
+            # Reload the rules
+            firewall-cmd --reload
+        else
+            printToConsole "WARNING: Unable to configure firewall because firewall-cmd command was not found"
+        fi
+    elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
+        if [[ "$(commandExists "ufw")" == "true" ]]; then
+            # ufw uses a colon for ranges
+            local masterNodePorts=("6443" "2379:2380" "10250:10252")
+            for masterNodePort in "${masterNodePorts[@]}"; do
+                printToLog "Opening port(s) ${masterNodePort}..."
+                ufw allow "${masterNodePort}/tcp"
+                    printToConsole "WARNING! Unable to open firewall port ${masterNodePort}. Manual configuration required"             
+            done
+            # Reload the rules
+            ufw reload
+        else
+            printToConsole "WARNING: Unable to configure firewall because ufw command was not found"
+        fi
+    fi
+
+    # Initialize the cluster
+    if [[ "$(commandExists "kubeadm")" == "true" ]]; then
+        printToConsole "Initializing cluster. This make take several minutes..."
+        kubeadm init --pod-network-cidr="192.168.0.0/16" || exitWithError "Failed to initialize cluster"
+    else
+        exitWithError "Unable to initialize cluster because kubeadm command was not found" 
+    fi
+
+    # Install pod network add-on
+    if [[ "$(commandExists "kubectl")" == "true" ]]; then
+        local calicoUrl="https://docs.projectcalico.org/v3.1/getting-started/kubernetes/installation/hosted"
+        printToLog "Installing pod network add-on..."
+        kubectl apply --filename "${calicoUrl}/rbac-kdd.yaml" || exitWithError "Unable to install pod networking"
+        kubectl apply --filename "${calicoUrl}/kubernetes-datastore/calico-networking/1.7/calico.yaml" || 
+            exitWithError "Unable to install pod networking"
+    else
+        exitWithError "Unable to install pod networking because kubectl command was not found" 
+    fi
+
+    printToConsole "Kubernetes cluster successfully initialized on ${thisNode}. Use the command that follows to join other nodes to the cluster."
+    printToConsole "Note: The token expires in 24 hours. To generate a new one, run 'kubeadm token create' on master node ${thisNode}."
+    printToConsole ""
+    local joinCommand="$(grep "kubeadm join" "${logFile}" | tr -d '\n')"
+    joinCommand+=" --ignore-preflight-errors=all"
+    printToConsole "${joinCommand}" 
+
+}
+
+# Set up this node as a worker node
+function configWorkerNode() {
+
+    local distro="$(getDistro)"
+    local thisNode="$(uname -n)"
+
+    printToConsole "Configuring node ${thisNode} as a worker node..."
+
+    # Configure the firewall 
+    if [[ "${distro}" == "centos" || "${distro}" == "rhel" || "${distro}" == "fedora" ]]; then
+        if [[ "$(commandExists "firewall-cmd")" == "true" ]]; then
+            # firewall-cmd uses a dash for ranges
+            local workerNodePorts=("10250" "30000-32767")
+            for workerNodePort in "${workerNodePorts[@]}"; do
+                printToLog "Opening port(s) ${workerNodePort}..."
+                firewall-cmd "--add-port=${workerNodePort}/tcp" --permanent || 
+                    printToConsole "WARNING! Unable to open firewall port ${workerNodePort}. Manual configuration required"             
+            done
+            # Reload the rules
+            firewall-cmd --reload
+        else
+            printToConsole "WARNING: Unable to configure firewall because firewall-cmd command was not found"
+        fi
+    elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
+        if [[ "$(commandExists "ufw")" == "true" ]]; then
+            # ufw uses a colon for ranges
+            local workerNodePorts=("10250" "30000:32767")
+            for workerNodePort in "${workerNodePorts[@]}"; do
+                printToLog "Opening port(s) ${workerNodePort}..."
+                ufw allow "${workerNodePort}/tcp"
+                    printToConsole "WARNING! Unable to open firewall port ${workerNodePort}. Manual configuration required"             
+            done
+            # Reload the rules
+            ufw reload
+        else
+            printToConsole "WARNING: Unable to configure firewall because ufw command was not found"
+        fi
+    fi
+
+    # Copy admin.conf from master so kubectl can be used
+    if [[ "$(commandExists "scp")" == "true" ]]; then
+        printToConsole "Attempting to copy admin.conf from the master node so kubectl commands can run on this node..."
+        read -p "Master node: " masterNode 2>&101
+        read -p "User account on master node: " user 2>&101
+        if [[ -n "${masterNode}" && -n "${user}" ]]; then
+            scp "${user}@${masterNode}:${k8sConfigFile}" "${k8sConfigFile}" ||
+                printToConsole "WARNING: Unable to copy admin.conf from master node. Unable to run kubectl commands on this node."
+        fi
+            
+    else
+        printToConsole "WARNING: Unable to copy admin.conf from master node. Unable to run kubectl commands on this node."
+    fi
+
+    printToConsole "Kubernetes worker node successfully initialized on ${thisNode}. Enter the 'kubeadmn join' command to add this node to your cluster."
+    printToConsole "The exact command to run can be found in ${logFile} on the master node. Make sure to run it as root."
 
 }
 
@@ -258,4 +392,9 @@ else
     checkForPrereqs
     install
     configAutoStart
+    if [[ "${isMasterNode}" == "true" ]]; then
+        configMasterNode
+    else
+        configWorkerNode
+    fi
 fi 

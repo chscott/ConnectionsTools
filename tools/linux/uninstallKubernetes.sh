@@ -18,6 +18,15 @@ function init() {
     checkForRoot
 
     # Process the user arguments and set global variables
+    kubernetesDirs=(
+        "/var/lib/calico"
+        "/etc/cni"
+        "/var/lib/cni"
+        "/var/lib/dockershim"
+        "/var/lib/etcd"
+        "/var/lib/kubelet"
+        "/etc/kubernetes"
+    )
     clean="false"
 
     while [[ ${#} > 0 ]]; do
@@ -37,12 +46,9 @@ function init() {
     done
 
     # Print log header
-    distro="$(getDistro)"
-    let osMajorVersion=$(getOSMajorVersion)
-    let osMinorVersion=$(getOSMinorVersion)
-    printToLog "Distro: ${distro}"
-    printToLog "Major version: ${osMajorVersion}"
-    printToLog "Minor version: ${osMinorVersion}"
+    printToLog "Distro: $(getDistro)"
+    printToLog "Major version: $(getOSMajorVersion)"
+    printToLog "Minor version: $(getOSMinorVersion)"
 
 }
 
@@ -55,7 +61,7 @@ function usage() {
     printToConsole ""
     printToConsole "--clean"
     printToConsole ""
-    printToConsole "Not yet implemented."
+    printToConsole "In addition to uninstalling Kubernetes, delete the Kubernetes data and configuration directories."
 
 }
 
@@ -87,6 +93,34 @@ function exitWithError() {
     printToConsole "${message}."
     printToConsole "Review ${logFile} for additional details"
     exit 1
+
+}
+
+# Tear down the node prior to uninstalling
+function tearDownNode() {
+
+    local thisNode="$(uname -n)"
+
+    if [[ "$(isNodeInK8sCluster "${thisNode}")" == "true" ]]; then
+        # This node is part of the cluster
+        printToConsole "Removing node ${thisNode} from the Kubernetes cluster..." 
+        if [[ "$(commandExists "kubectl")" == "true" ]]; then
+            kubectl drain "${thisNode}" --delete-local-data --force --ignore-daemonsets
+            kubectl delete node "${thisNode}"
+        else
+            printToConsole "ERROR! Unable to drain and delete node because kubectl is not installed on this system." 
+            exitWithError "Drain and delete this node before attempting to uninstall Kubernetes."
+        fi
+        if [[ "$(commandExists "kubeadm")" == "true" ]]; then
+            kubeadm reset --force --cri-socket "unix:///var/run/dockershim.sock"
+        else
+            printToConsole "WARNING! Unable to reset installed state because kubeadm is not installed on this system." 
+        fi
+    else
+        # This node is not part of the cluster
+        printToLog "This node is not in the Kubernetes cluster. Node name: ${thisNode}"
+        
+    fi
 
 }
 
@@ -141,7 +175,12 @@ function uninstall() {
 # Delete additional Kubernetes config/data (not yet implemented)
 function makeClean() {
 
-    printToConsole "The makeCleaner function is not yet implemented"
+    printToConsole "Deleting Kubernetes directories..."
+
+    for directory in "${kubernetesDirs[@]}"; do
+        printToLog "Deleting ${directory}..."
+        rm -f -r "${directory}"
+    done 
 
 }
 
@@ -149,15 +188,17 @@ init "${@}"
 
 if [[ "${clean}" == "true" ]]; then
     # Since this is destructive, ask for confirmation
-    printToConsole "WARNING! The --clean option will delete <fill in later>, removing all configuration and data"
+    printToConsole "WARNING! The --clean option will delete all Kubernetes directories, removing all configuration and data"
     printToConsole ""
     read -p "If you are certain you want to do this, enter 'yes' and press Enter: " answer 2>&101
     if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then
+        tearDownNode
         uninstall
         makeClean
     else
         printToConsole "Aborting Kubernetes uninstall"
     fi
 else
+    tearDownNode
     uninstall
 fi

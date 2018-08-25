@@ -39,12 +39,9 @@ function init() {
     done
 
     # Print log header
-    distro="$(getDistro)"
-    let osMajorVersion=$(getOSMajorVersion)
-    let osMinorVersion=$(getOSMinorVersion)
-    printToLog "Distro: ${distro}"
-    printToLog "Major version: ${osMajorVersion}"
-    printToLog "Minor version: ${osMinorVersion}"
+    printToLog "Distro: $(getDistro)"
+    printToLog "Major version: $(getOSMajorVersion)"
+    printToLog "Minor version: $(getOSMinorVersion)"
 
 }
 
@@ -57,7 +54,7 @@ function usage() {
     printToConsole ""
     printToConsole "--clean"
     printToConsole ""
-    printToConsole "In addition to uninstalling Docker, delete the /etc/docker and /var/lib/docker directories."
+    printToConsole "In addition to uninstalling Docker, delete the Docker data and configuration directories."
 
 }
 
@@ -103,6 +100,21 @@ function checkForPrereqs() {
           "$(isK8sComponentInstalled "kubectl")" == "true" ||
           "$(isK8sComponentInstalled "kubelet")" == "true" ]]; then 
         exitWithError "One or more Kubernetes components is installed. Uninstall Kubernetes before attempting to uninstall Docker"
+    fi
+
+}
+
+# Stop any running containers
+function stopContainers() {
+
+    if [[ "$(commandExists "docker")" == "true" ]]; then
+        if (( $(docker container ls --quiet || wc -l) > 0 )); then
+        # There are one or more running containers
+            printToConsole "Running containers found. Stopping..."
+            docker container stop $(docker container ls --quiet)
+        fi
+    else
+        printToLog "WARNING: Unable to find docker command. Running containers cannot be stopped, which may prevent deleting ${dockerDataDir}."
     fi
 
 }
@@ -178,11 +190,12 @@ init "${@}"
 
 if [[ "${clean}" == "true" ]]; then
     # Since this is destructive, ask for confirmation
-    printToConsole "WARNING! The --clean option will delete ${dockerConfigDir} and ${dockerDataDir}, removing all configuration and data"
+    printToConsole "WARNING! The --clean option will delete ${dockerConfigDir} and ${dockerDataDir}, removing all configuration, images and containers."
     printToConsole ""
     read -p "If you are certain you want to do this, enter 'yes' and press Enter: " answer 2>&101
     if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then
         checkForPrereqs
+        stopContainers
         uninstall
         makeClean
     else
@@ -190,5 +203,6 @@ if [[ "${clean}" == "true" ]]; then
     fi
 else
     checkForPrereqs
+    stopContainers
     uninstall
 fi

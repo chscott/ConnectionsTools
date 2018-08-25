@@ -1,18 +1,9 @@
 #!/bin/bash
-# utils.sh
 
 # Source prereqs
 . "/etc/ictools.conf"
 
-# Global variables
-CP_SUPPORTED_RELEASE="6.0.0.6"
-CP_DOCKER_SUPPORTED_RELEASE="17.03"
-CP_K8S_SUPPORTED_RELEASE="1.11"
-CP_CENTOS_SUPPORTED_RELEASE="7.x"
-CP_RHEL_SUPPORTED_RELEASE="7.x"
-CP_FEDORA_SUPPORTED_RELEASE="25"
-CP_DEBIAN_SUPPORTED_RELEASE="9"
-CP_UBUNTU_SUPPORTED_RELEASE="16.04"
+# Section: Operating System ================================================================================================================
 
 # Returns ID value from /etc/os-release or "unknown" if not found 
 function getDistro() {
@@ -202,7 +193,7 @@ function isDTypeEnabledForDirectory() {
     local dType="false"
     
     # Return false if xfs_info isn't available
-    if command -v xfs_info >/dev/null 2>&1; then
+    if [[ "$(commandExists "xfs_info")" == "true" ]]; then
         # Try running xfs_info on all directories in path, starting at the leaf and working backward. Use the first directory with XFS info
         until xfs_info "${directory}" >/dev/null 2>&1; do
             directory="$(dirname "${directory}")"
@@ -220,82 +211,227 @@ function isDTypeEnabledForDirectory() {
 
 }
 
-# Return number of K8s master node ports in use (6443, 2379, 2380, 10250-10252, 10255)
-function checkForK8sMasterNodePortsInUse() {
+# Verify that a given directory exists
+function directoryExists() {
 
-    local activePorts=$(
-        netstat --tcp --listen --numeric | \
-        awk '{print $4}' | \
-        awk -F ':' '{print $NF}' | \
-        grep -c -E "^6443$|^2379$|^2380$|^1025[0-2]$|^10255$" \
-    )
+    local directory="${1}"
 
-    echo ${activePorts}
+    if [[ -d "${directory}" ]]; then
+        echo "true"
+    else
+        echo "false"
+    fi
+
+}
+
+# Verify that a given directory has subdirectories
+function directoryHasSubDirs() {
+
+    local directory="${1}"
+    local status="false"
+
+    cd "${directory}" 2>&1
+
+    # No error, so directory exists
+    if [[ ${?} == 0 ]]; then
+        ls -d * >/dev/null 2>&1 
+        # No error, so at least one subdir was found
+        if [[ ${?} == 0 ]]; then
+            status="true"
+        fi
+    fi           
+
+    echo "${status}"
 
 }
 
-# Return number of K8s worker node ports in use (10250, 10255, 30000-32767)
-function checkForK8sWorkerNodePortsInUse() {
+# Tests to make sure the effective user ID is root
+function checkForRoot() {
 
-    local activePorts=$(
-        netstat --tcp --listen --numeric | \
-        awk '{print $4}' | \
-        awk -F ':' '{print $NF}' | \
-        grep -c -E "^10250$|^10255$|3[0-2][0-7[0-6][0-7]" \
-    )
+    local script="$(basename "${0}")"
 
-    echo ${activePorts}
+	if [[ ${EUID} != 0 ]]; then
+		log "${script} needs to run as root. Exiting."
+		exit 1
+	fi
 
 }
+
+# Determine if a command exists on path or as a built-in
+function commandExists() {
+
+    local commandToTest="${1}"
+    
+    if command -v "${commandToTest}" >/dev/null 2>&1; then
+        echo "true"
+    else
+        echo "false"
+    fi
+
+}
+
+# End of Operating System section ==========================================================================================================
+
+# Section: DB2 ===========================================================================================================================+=
+
+# Prints the status of the DB2 server
+# $1: (Optional) boolean (true returns the result via subshell, any other value prints to display)
+function getDB2ServerStatus() {
+
+    local noDisplay="${1}"
+
+    # If no DB2 installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
+    if [[ -z "${db2InstallDir}" || ! -d "${db2InstallDir}" ]]; then
+        return
+    fi
+
+    # Only print info if noDisplay is not true
+    if [[ "${noDisplay}" != "true" ]]; then
+        printf "${left2Column}" "Server: DB2"
+    fi
+
+    # See if the server is running
+    if [[ $(ps -ef | grep -v "grep" | grep -c "db2sysc") > 0 ]]; then
+        # If we found a match, the server is started
+        if [[ "${noDisplay}" == "true" ]]; then
+            echo "STARTED"
+        else
+            printf "${right2Column}" "${greenText}STARTED${normalText}"
+        fi
+    else 
+        # If we did not find a match, the server is stopped
+        if [[ "${noDisplay}" == "true" ]]; then
+            echo "STOPPED"
+        else
+            printf "${right2Column}" "${redText}STOPPED${normalText}"
+        fi
+    fi
+
+}
+
+# Start DB2 
+function startDB2Server() {
+
+    # If no DB2 installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
+    if [[ -z "${db2InstallDir}" || ! -d "${db2InstallDir}" ]]; then
+        log "DB2 does not appear to be installed on this system. Exiting."
+        exit 0
+    fi
+
+    printf "${left2Column}" "Starting DB2..."
+
+    if [[ "$(getDB2ServerStatus "true")" == "STOPPED" ]]; then
+        # If the server is stopped, start it 
+        status=$(sudo -i -u "${db2InstanceUser}" "db2start")
+        # Check to see if the server is started
+        if [[ "$(getDB2ServerStatus "true")" == "STARTED" ]]; then
+            printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+        else
+            printf "${right2Column}" "${redText}FAILURE${normalText}"
+        fi 
+    else
+        # The server is already started, so report success
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    fi
+
+}
+
+# Stop DB2
+function stopDB2Server() {
+
+    # If no DB2 installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
+    if [[ -z "${db2InstallDir}" || ! -d "${db2InstallDir}" ]]; then
+        log "DB2 does not appear to be installed on this system. Exiting."
+        exit 0
+    fi
+
+    printf "${left2Column}" "Stopping DB2..."
+
+    if [[ "$(getDB2ServerStatus "true")" == "STARTED" ]]; then
+        # If the server is started, stop it 
+        status=$(sudo -i -u "${db2InstanceUser}" "db2stop")
+        if [[ "${status}" =~ "SQL1064N" || "${status}" =~ "SQL1032N" ]]; then
+            printf "${right2Column}" "${greenText}SUCCESS${normalText}" 
+        elif [[ "${status}" =~ "SQL1025N" ]]; then
+            printf "${right2Column}" "${redText}FAILURE${normalText} (active connections)"
+        else
+            printf "${right2Column}" "${redText}FAILURE${normalText}" 
+        fi
+    else
+        # The server is already stopped, so report success
+        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+    fi
+
+}
+
+# End of DB2 section =======================================================================================================================
+
+# Section: TDI =============================================================================================================================
+
+# Tests to make sure TDI is installed on this system
+function checkForTDI() {
+
+    local script="$(basename "${0}")"
+
+    if [[ ! -d "${tdiSolutionDir}" ]]; then
+        log "${script} can only run on TDI nodes. Exiting."
+        exit 1
+    fi
+
+}
+
+# End of TDI section =======================================================================================================================
+
+# Section: Component Pack ==================================================================================================================
+
+CP_SUPPORTED_RELEASE="6.0.0.6"
+CP_DOCKER_SUPPORTED_RELEASE="17.03"
+CP_K8S_SUPPORTED_RELEASE="1.11"
+CP_HELM_SUPPORTED_RELEASE="2.9.1"
+CP_CENTOS_SUPPORTED_RELEASE="7.x"
+CP_RHEL_SUPPORTED_RELEASE="7.x"
+CP_FEDORA_SUPPORTED_RELEASE="25"
+CP_DEBIAN_SUPPORTED_RELEASE="9"
+CP_UBUNTU_SUPPORTED_RELEASE="16.04"
 
 # Prints an output table of requirements for installing Component Pack
-# $1: optional file descriptor for output
+# $1: optional file to print to
 function printCPRequirementsTable() {
 
-    local fd=${1}
-    local output="/dev/null"
+    local file="${1}"
     local distro="$(getDistro)"
 
-    if [[ -n ${fd} && -w "/proc/${BASHPID}/fd/${fd}" ]]; then
-        # If a writable file descriptor was provided, sent the output there
-        output="/proc/${BASHPID}/fd/${fd}"
-    else
-        output="/proc/${BASHPID}/fd/1"
-    fi
-
-    printf "Component Pack ${CP_SUPPORTED_RELEASE} requirements:\n" >>"${output}"
-    printf "\n" >>"${output}"
-    printf "%-20s\t%-20s\t%-20s\n" "Requirement" "Found" "Requires" >>"${output}" 
-    printf "%-20s\t%-20s\t%-20s\n" "-----------" "-----" "--------" >>"${output}"
-    printf "%-20s\t%-20s\t%-20s\n" "Distro:" "${distro}" "centos, rhel*, fedora, debian or ubuntu" >>"${output}" 
+    printf "Component Pack ${CP_SUPPORTED_RELEASE} requirements:\n" >>"${file}"
+    printf "\n" >>"${file}"
+    printf "%-20s\t%-20s\t%-20s\n" "Requirement" "Found" "Requires" >>"${file}" 
+    printf "%-20s\t%-20s\t%-20s\n" "-----------" "-----" "--------" >>"${file}"
+    printf "%-20s\t%-20s\t%-20s\n" "Distro:" "${distro}" "centos, rhel*, fedora, debian or ubuntu" >>"${file}" 
     if [[ "${distro}" == "centos" ]]; then
-        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_CENTOS_SUPPORTED_RELEASE}" >>"${output}"
+        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_CENTOS_SUPPORTED_RELEASE}" >>"${file}"
     elif [[ "${distro}" == "rhel" ]]; then
-        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_RHEL_SUPPORTED_RELEASE}" >>"${output}"
+        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_RHEL_SUPPORTED_RELEASE}" >>"${file}"
     elif [[ "${distro}" == "fedora" ]]; then
-        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion)" "${CP_FEDORA_SUPPORTED_RELEASE}" >>"${output}"
+        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion)" "${CP_FEDORA_SUPPORTED_RELEASE}" >>"${file}"
     elif [[ "${distro}" == "debian" ]]; then
-        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion)" "${CP_DEBIAN_SUPPORTED_RELEASE}" >>"${output}"
+        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion)" "${CP_DEBIAN_SUPPORTED_RELEASE}" >>"${file}"
     elif [[ "${distro}" == "ubuntu" ]]; then
-        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_UBUNTU_SUPPORTED_RELEASE}" >>"${output}"
+        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_UBUNTU_SUPPORTED_RELEASE}" >>"${file}"
     fi
-    printf "%-20s\t%-20s\t%-20s\n" "Machine architecture:" "$(getMachineArchitecture)" "x86_64" >>"${output}" 
-    printf "%-20s\t%-20s\t%-20s\n" "Logical cores:" "$(getLogicalCores)" "At least 2" >>"${output}" 
-    printf "%-20s\t%-20s\t%-20s\n" "Available memory:" "$(getAvailableMemory)" "At least 2097152" >>"${output}"
-    printf "%-20s\t%-20s\t%-20s\n" "Total swap:" "$(getSwapMemory)" "Must be 0" >>"${output}"
-    printf "\n" >>"${output}"
+    printf "%-20s\t%-20s\t%-20s\n" "Machine architecture:" "$(getMachineArchitecture)" "x86_64" >>"${file}" 
+    printf "%-20s\t%-20s\t%-20s\n" "Logical cores:" "$(getLogicalCores)" "At least 2" >>"${file}" 
+    printf "%-20s\t%-20s\t%-20s\n" "Available memory:" "$(getAvailableMemory)" "At least 2097152" >>"${file}"
+    printf "%-20s\t%-20s\t%-20s\n" "Total swap:" "$(getSwapMemory)" "Must be 0" >>"${file}"
+    printf "\n" >>"${file}"
     if [[ "$(isCPSupportedPlatform)" == "true" ]]; then
         local isSupported="Yes"
     else
         local isSupported="No"
     fi
-    printf "%s %s\n" "Supported for Component Pack:" "${isSupported}" >>"${output}"
+    printf "%s %s\n" "Supported for Component Pack:" "${isSupported}" >>"${file}"
 
 }
 
 # Determines if this system is supported for Component Pack. Support is the intersection of support for Docker, K8s and Helm.
-# Docker 17.03 requirements: https://docs.docker.com/v17.03/engine/installation/linux/${distro}/#os-requirements
-# Kubernetes 1.11 requirements: https://github.com/kubernetes/website/blob/release-1.11/content/en/docs/tasks/tools/install-kubeadm.md
 function isCPSupportedPlatform() {
 
     # Support is explicit
@@ -355,53 +491,9 @@ function isCPSupportedPlatform() {
 
 }
 
-# Tests to make sure the effective user ID is root
-function checkForRoot() {
+# End of Component Pack section ============================================================================================================
 
-    local script="$(basename "${0}")"
-
-	if [[ ${EUID} != 0 ]]; then
-		log "${script} needs to run as root. Exiting."
-		exit 1
-	fi
-
-}
-
-# Tests to make sure the WAS Deployment Manager is available on this system
-function checkForDmgr() {
-
-    local script="$(basename "${0}")"
-
-    if [[ ! -d "${wasDmgrProfile}" ]]; then
-        log "${script} can only run on the Deployment Manager node. Exiting."
-        exit 1
-    fi
-
-}
-
-# Tests to make sure Connections is installed on this system
-function checkForIC() {
-
-    local script="$(basename "${0}")"
-
-    if [[ ! -d "${icInstallDir}" ]]; then
-        log "${script} can only run on Connections nodes. Exiting."
-        exit 1
-    fi
-
-}
-
-# Tests to make sure TDI is installed on this system
-function checkForTDI() {
-
-    local script="$(basename "${0}")"
-
-    if [[ ! -d "${tdiSolutionDir}" ]]; then
-        log "${script} can only run on TDI nodes. Exiting."
-        exit 1
-    fi
-
-}
+# Section: Docker ========================================================================================================================+=
 
 # Checks to see if Docker CE is installed
 function isDockerCEInstalled() {
@@ -448,6 +540,13 @@ function getDockerCEVersion() {
     echo "${installedVersion}"
 
 }
+
+# End of Docker section ====================================================================================================================
+
+# Section: Kubernetes ======================================================================================================================
+
+# This is will be set any time utils.sh is sourced, allowing use of Kubernetes commands without needing to jump through hoops
+export KUBECONFIG="/etc/kubernetes/admin.conf"
 
 # Checks to see if specified Kubernetes component is installed
 # $1: component (kubeadm, kubectl, kubelet)
@@ -514,48 +613,76 @@ function checkForK8s() {
     fi
 
 }
+# Return number of K8s master node ports in use (6443, 2379, 2380, 10250-10252, 10255)
+function checkForK8sMasterNodePortsInUse() {
 
-# Log message to stdout
-# $1: message to log
-function log() {
+    local activePorts=$(
+        netstat --tcp --listen --numeric | \
+        awk '{print $4}' | \
+        awk -F ':' '{print $NF}' | \
+        grep -c -E "^6443$|^2379$|^2380$|^1025[0-2]$|^10255$" \
+    )
 
-    local message="${1}"
-
-	printf "%s\n" "${message}"
+    echo ${activePorts}
 
 }
 
-# Verify that a given directory exists
-function directoryExists() {
+# Return number of K8s worker node ports in use (10250, 10255, 30000-32767)
+function checkForK8sWorkerNodePortsInUse() {
 
-    local directory="${1}"
+    local activePorts=$(
+        netstat --tcp --listen --numeric | \
+        awk '{print $4}' | \
+        awk -F ':' '{print $NF}' | \
+        grep -c -E "^10250$|^10255$|3[0-2][0-7[0-6][0-7]" \
+    )
 
-    if [[ -d "${directory}" ]]; then
-        echo "true"
-    else
-        echo "false"
+    echo ${activePorts}
+
+}
+
+# Return whether or not this system is a node in the Kubernetes cluster
+function isNodeInK8sCluster() {
+
+    local nodeName="${1}"
+    local isInCluster="false"
+
+    if [[ -n "${nodeName}" && ("$(commandExists kubectl)" == "true") ]]; then
+        if (( $(kubectl get nodes | grep -c "${nodeName}") > 0 )); then
+            isInCluster="true" 
+        fi
+    fi
+
+    echo "${isInCluster}"
+
+}
+
+# End of Kubernetes section ================================================================================================================
+
+# Section: WAS =============================================================================================================================
+
+# Tests to make sure the WAS Deployment Manager is available on this system
+function checkForDmgr() {
+
+    local script="$(basename "${0}")"
+
+    if [[ ! -d "${wasDmgrProfile}" ]]; then
+        log "${script} can only run on the Deployment Manager node. Exiting."
+        exit 1
     fi
 
 }
 
-# Verify that a given directory has subdirectories
-function directoryHasSubDirs() {
+# Check to see if Deployment Manager is available
+function isDmgrAvailable() {
 
-    local directory="${1}"
-    local status="false"
+    local status="$(nmap "${wasDmgrHost}" -p ${wasDmgrSoapPort})"
 
-    cd "${directory}" 2>&1
-
-    # No error, so directory exists
-    if [[ ${?} == 0 ]]; then
-        ls -d * >/dev/null 2>&1 
-        # No error, so at least one subdir was found
-        if [[ ${?} == 0 ]]; then
-            status="true"
-        fi
-    fi           
-
-    echo "${status}"
+    if [[ "${status}" =~ "open" ]]; then
+        echo 0
+    else
+        echo 1
+    fi
 
 }
 
@@ -656,19 +783,6 @@ function isServerInWASCell() {
 
 }
 
-# Check to see if Deployment Manager is available
-function isDmgrAvailable() {
-
-    local status="$(nmap "${wasDmgrHost}" -p ${wasDmgrSoapPort})"
-
-    if [[ "${status}" =~ "open" ]]; then
-        echo 0
-    else
-        echo 1
-    fi
-
-}
-
 # Prints the status of the specified WAS server
 # $1: server to check
 # $2: profile root
@@ -766,6 +880,10 @@ function stopWASServer() {
     fi
 
 }
+
+# End of WAS section =======================================================================================================================
+
+# Section: IHS =============================================================================================================================
 
 # Prints the status of the IHS server
 # $1: (Optional) boolean (true returns the result via subshell, any other value prints to display)
@@ -953,6 +1071,10 @@ function stopIHSAdminServer() {
 
 }
 
+# End of IHS section =======================================================================================================================
+
+# Section: NGINX ===========================================================================================================================
+
 # Prints the status of the NGINX server
 # $1: (Optional) boolean (true returns the result via subshell, any other value prints to display)
 function getNGINXServerStatus() {
@@ -1015,7 +1137,6 @@ function startNGINXServer() {
     fi
     
 }
-
 # Stop NGINX server
 function stopNGINXServer() {
 
@@ -1046,6 +1167,10 @@ function stopNGINXServer() {
     fi
 
 }
+
+# End of NGINX section =====================================================================================================================
+
+# Section: Solr ============================================================================================================================
 
 # Prints the status of the Solr server
 # $1: (Optional) boolean (true returns the result via subshell, any other value prints to display)
@@ -1170,92 +1295,58 @@ function stopSolrServer() {
 
 }
 
-# Prints the status of the DB2 server
-# $1: (Optional) boolean (true returns the result via subshell, any other value prints to display)
-function getDB2ServerStatus() {
+# End of Solr section ======================================================================================================================
 
-    local noDisplay="${1}"
+# Section: Connections =====================================================================================================================
 
-    # If no DB2 installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
-    if [[ -z "${db2InstallDir}" || ! -d "${db2InstallDir}" ]]; then
-        return
-    fi
+# Tests to make sure Connections is installed on this system
+function checkForIC() {
 
-    # Only print info if noDisplay is not true
-    if [[ "${noDisplay}" != "true" ]]; then
-        printf "${left2Column}" "Server: DB2"
-    fi
+    local script="$(basename "${0}")"
 
-    # See if the server is running
-    if [[ $(ps -ef | grep -v "grep" | grep -c "db2sysc") > 0 ]]; then
-        # If we found a match, the server is started
-        if [[ "${noDisplay}" == "true" ]]; then
-            echo "STARTED"
-        else
-            printf "${right2Column}" "${greenText}STARTED${normalText}"
-        fi
-    else 
-        # If we did not find a match, the server is stopped
-        if [[ "${noDisplay}" == "true" ]]; then
-            echo "STOPPED"
-        else
-            printf "${right2Column}" "${redText}STOPPED${normalText}"
-        fi
+    if [[ ! -d "${icInstallDir}" ]]; then
+        log "${script} can only run on Connections nodes. Exiting."
+        exit 1
     fi
 
 }
 
-# Start DB2 
-function startDB2Server() {
+# End of Connections section ===============================================================================================================
 
-    # If no DB2 installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
-    if [[ -z "${db2InstallDir}" || ! -d "${db2InstallDir}" ]]; then
-        log "DB2 does not appear to be installed on this system. Exiting."
-        exit 0
-    fi
+# Section: Misc ============================================================================================================================
 
-    printf "${left2Column}" "Starting DB2..."
+# Log message to stdout
+function log() {
 
-    if [[ "$(getDB2ServerStatus "true")" == "STOPPED" ]]; then
-        # If the server is stopped, start it 
-        status=$(sudo -i -u "${db2InstanceUser}" "db2start")
-        # Check to see if the server is started
-        if [[ "$(getDB2ServerStatus "true")" == "STARTED" ]]; then
-            printf "${right2Column}" "${greenText}SUCCESS${normalText}"
-        else
-            printf "${right2Column}" "${redText}FAILURE${normalText}"
-        fi 
-    else
-        # The server is already started, so report success
-        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
-    fi
+    local message="${1}"
+
+	printf "%s\n" "${message}"
 
 }
 
-# Stop DB2
-function stopDB2Server() {
+# Write a message to the provided file descriptor using an optionally supplied format
+function writeToFD() {
 
-    # If no DB2 installation directory is specified in ictools.conf or the directory doesn't exist, do nothing
-    if [[ -z "${db2InstallDir}" || ! -d "${db2InstallDir}" ]]; then
-        log "DB2 does not appear to be installed on this system. Exiting."
-        exit 0
-    fi
+    local fd="${1}"
+    local message="${2}"
+    local format="${3}"
 
-    printf "${left2Column}" "Stopping DB2..."
-
-    if [[ "$(getDB2ServerStatus "true")" == "STARTED" ]]; then
-        # If the server is started, stop it 
-        status=$(sudo -i -u "${db2InstanceUser}" "db2stop")
-        if [[ "${status}" =~ "SQL1064N" || "${status}" =~ "SQL1032N" ]]; then
-            printf "${right2Column}" "${greenText}SUCCESS${normalText}" 
-        elif [[ "${status}" =~ "SQL1025N" ]]; then
-            printf "${right2Column}" "${redText}FAILURE${normalText} (active connections)"
+    if [[ -n "${fd}" && -w "/proc/${BASHPID}/fd/${fd}" ]]; then
+        # If a writable file descriptor was provided, sent the output there
+        if [[ -n "${format}" ]]; then
+            printf "${format}" "${message}" >>"/proc/${BASHPID}/fd/${fd}"
         else
-            printf "${right2Column}" "${redText}FAILURE${normalText}" 
+            printf "${message}" >>"/proc/${BASHPID}/fd/${fd}" 
         fi
     else
-        # The server is already stopped, so report success
-        printf "${right2Column}" "${greenText}SUCCESS${normalText}"
+        # Otherwise send output to fd 1
+        if [[ -n "${format}" ]]; then
+            printf "${format}" "${message}" >>"/proc/${BASHPID}/fd/1"
+        else
+            printf "${message}" >>"/proc/${BASHPID}/fd/1"
+        fi
     fi
 
 }
+
+# End of Misc section ======================================================================================================================
