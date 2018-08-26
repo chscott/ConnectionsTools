@@ -400,6 +400,9 @@ function printCPRequirementsTable() {
 
     local file="${1}"
     local distro="$(getDistro)"
+    local greenText=$'\e[1;32m'
+    local redText=$'\e[1;31m'
+    local normalText=$'\e[0m'
 
     printf "Component Pack ${CP_SUPPORTED_RELEASE} requirements:\n" >>"${file}"
     printf "\n" >>"${file}"
@@ -423,9 +426,9 @@ function printCPRequirementsTable() {
     printf "%-20s\t%-20s\t%-20s\n" "Total swap:" "$(getSwapMemory)" "Must be 0" >>"${file}"
     printf "\n" >>"${file}"
     if [[ "$(isCPSupportedPlatform)" == "true" ]]; then
-        local isSupported="Yes"
+        local isSupported="${greenText}Yes${normalText}"
     else
-        local isSupported="No"
+        local isSupported="${redText}No${normalText}"
     fi
     printf "%s %s\n" "Supported for Component Pack:" "${isSupported}" >>"${file}"
 
@@ -1324,27 +1327,157 @@ function log() {
 
 }
 
-# Write a message to the provided file descriptor using an optionally supplied format
-function writeToFD() {
+# Write a message to output file
+function output() {
 
-    local fd="${1}"
-    local message="${2}"
+    local message="${1}"
+    local file="${2}"
+
+    if [[ -n "${file}" && -w "${file}" ]]; then
+        printf "%s\n" "${message}" >>"${file}"
+    fi
+
+}
+
+# Write a formatted message to output file
+function outputFormatted() {
+
+    local message="${1}"
+    local format="${2}"
+    local file="${3}"
+
+    if [[ -n "${file}" && -w "${file}" ]]; then
+        printf "${format}" "${message}" >>"${file}"
+    fi
+
+}
+
+# Write a message with timestamp to output file
+function outputTS() {
+
+    local message="${1}"
+    local file="${2}"
+    local now="$(date '+%F %T')"
+
+    if [[ -n "${file}" && -w "${file}" ]]; then
+        printf "%s\n" "${now} ${message}" >>"${file}"
+    fi
+
+}
+
+# Write a formatted message with timestamp to output file
+function outputFormattedTS() {
+
+    local message="${1}"
+    local format="${2}"
+    local file="${3}"
+    local now="$(date '+%F %T')"
+
+    if [[ -n "${file}" && -w "${file}" ]]; then
+        printf "${format}" "${now} ${message}" >>"${file}"
+    fi
+
+}
+
+# Write a message to two files
+function teeOutput() {
+
+    local message="${1}"
+    local file1="${2}"
+    local file2="${3}"
+
+    if [[ -n "${file1}" && -w "${file1}" ]]; then
+        printf "%s\n" "${message}" >>"${file1}"
+    fi
+
+    if [[ -n "${file2}" && -w "${file2}" ]]; then
+        printf "%s\n" "${message}" >>"${file2}"
+    fi
+
+}
+
+# Write a formatted message to two files
+function teeOutputFormatted() {
+
+    local message="${1}"
+    local format1="${2}"
+    local file1="${3}"
+    local format2="${4}"
+    local file2="${5}"
+
+    if [[ -n "${file1}" && -w "${file1}" ]]; then
+        printf "${format1}" "${message}" >>"${file1}"
+    fi
+
+    if [[ -n "${file2}" && -w "${file2}" ]]; then
+        printf "${format2}" "${message}" >>"${file2}"
+    fi
+
+}
+
+# Write a message with timestamp to two files
+function teeOutputTS() {
+
+    local message="${1}"
+    local file1="${2}"
+    local file2="${3}"
+    local now="$(date '+%F %T')"
+
+    if [[ -n "${file1}" && -w "${file1}" ]]; then
+        printf "%s\n" "${now} ${message}" >>"${file1}"
+    fi
+
+    if [[ -n "${file2}" && -w "${file2}" ]]; then
+        printf "%s\n" "${now} ${message}" >>"${file2}"
+    fi
+
+}
+
+# Write a formatted message with timestamp to two files
+function teeOutputFormattedTS() {
+
+    local message="${1}"
+    local format1="${2}"
+    local file1="${3}"
+    local format2="${4}"
+    local file2="${5}"
+    local now="$(date '+%F %T')"
+
+    if [[ -n "${file1}" && -w "${file1}" ]]; then
+        printf "${format1}" "${now} ${message}" >>"${file1}"
+    fi
+
+    if [[ -n "${file2}" && -w "${file2}" ]]; then
+        printf "${format2}" "${now} ${message}" >>"${file2}"
+    fi
+
+}
+
+# Print a two-column table row to the provided file
+function output2ColumnTableRow() {
+
+    local column1="${1}"
+    local column2="${2}"
     local format="${3}"
+    local file="${4}"
 
-    if [[ -n "${fd}" && -w "/proc/${BASHPID}/fd/${fd}" ]]; then
-        # If a writable file descriptor was provided, sent the output there
-        if [[ -n "${format}" ]]; then
-            printf "${format}" "${message}" >>"/proc/${BASHPID}/fd/${fd}"
-        else
-            printf "${message}" >>"/proc/${BASHPID}/fd/${fd}" 
-        fi
-    else
-        # Otherwise send output to fd 1
-        if [[ -n "${format}" ]]; then
-            printf "${format}" "${message}" >>"/proc/${BASHPID}/fd/1"
-        else
-            printf "${message}" >>"/proc/${BASHPID}/fd/1"
-        fi
+    if [[ -n "${column1}" && -n "${column2}" && -n "${format}" ]]; then
+        printf "${format}" "${column1}" "${column2}" >>"${file}"
+    fi
+
+}
+
+# Print a three-column table row to the provided file
+function output3ColumnTableRow() {
+
+    local column1="${1}"
+    local column2="${2}"
+    local column3="${3}"
+    local format="${4}"
+    local file="${5}"
+
+    if [[ -n "${column1}" && -n "${column2}" && -n "${column3}" && -n "${format}" ]]; then
+        printf "${format}" "${column1}" "${column2}" "${column3}" >>"${file}"
     fi
 
 }

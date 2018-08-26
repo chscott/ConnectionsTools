@@ -9,6 +9,7 @@ function init() {
     # Redirect output to the log. Point 101 to the original 1 so some output can be sent to the terminal
     exec 101>&1
     exec 1>>"${logFile}" 2>&1
+    terminal="/proc/${BASHPID}/fd/101"
 
     # Source the prereqs
     scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,7 +25,6 @@ function init() {
 
     while [[ ${#} > 0 ]]; do
         local key="${1}"
-        local value="${2}"
         case "${key}" in
             --help)
                 usage
@@ -52,27 +52,21 @@ function init() {
 # Print the usage text to the console
 function usage() {
 
-    printToConsole "Usage: installKubernetes.sh [OPTIONS]"
-    printToConsole ""
-    printToConsole "Options:"
-    printToConsole ""
-    printToConsole "--check"
-    printToConsole ""
-    printToConsole "Checks the system to see if meets the requirement to install Component Pack components."
-    printToConsole ""
-    printToConsole "--master-node"
-    printToConsole ""
-    printToConsole "Designate this as the master node for the Kubernetes cluster."
+    # Redirect FD 1 to terminal so each line doesn't have to be redirected
+    exec 1>>"${terminal}"
 
-}
+    printf "%s\n" "Usage: installKubernetes.sh [OPTIONS]"
+    printf "%s\n" ""
+    printf "%s\n" "Options:"
+    printf "%s\n" ""
+    printf "%s\n" "--check"
+    printf "%s\n" "  Checks the system to see if meets the requirement to install Component Pack components."
+    printf "%s\n" ""
+    printf "%s\n" "--master-node"
+    printf "%s\n" "  Designate this as the master node for the Kubernetes cluster."
 
-# Print to the console (and to the log)
-function printToConsole() {
-
-    local message="${1}"
-
-	printf "%s\n" "${message}" >&101
-    printToLog "${message}"
+    # Redirect FD 1 back to the log file
+    exec 1>>"${logFile}"
 
 }
 
@@ -82,7 +76,7 @@ function printToLog() {
     local message="${1}"
     local now="$(date '+%F %T')"
 
-	printf "%s %s\n" "${now}" "${message}" >>"${logFile}"
+	printf "%s\n" "${now} ${message}"
 
 }
 
@@ -97,6 +91,56 @@ function exitWithError() {
 
 }
 
+# Print the operation
+function operation() {
+
+    local message="${1}"
+    local now="$(date '+%F %T')"
+    local leftAlign="%-120.120s"
+
+    # To terminal
+    printf "${leftAlign}" "${now} ${message}" >>"${terminal}"
+
+    # To log
+    printToLog "${now} ${message}"
+
+}
+
+# Print a failure message
+function fail() {
+
+    local redText=$'\e[1;31m'
+    local normalText=$'\e[0m'
+    local rightAlign="%-6s\n\n"
+
+    # To terminal
+    printf "${rightAlign}" "${redText}Failed${normalText}" >>"${terminal}"
+    printf "%s\n" "Review ${logFile} for additional details" >>"${terminal}"
+
+    # To log
+    printToLog "Operation failed"
+    
+    exit 1
+
+}
+
+# Print a warning message
+function warn() {
+
+    local yellowText=$'\e[1;33m'
+    local normalText=$'\e[0m'
+    local rightAlign="%-7s\n"
+
+    # To terminal
+    printf "${rightAlign}" "${yellowText}Warning${normalText}" >>"${terminal}"
+    
+    # To log
+    printToLog "Operation completed with warnings"
+
+}
+
+# Print a success message
+function pass() {
 # Exit without error code and with the supplied message 
 function exitWithoutError() {
 
