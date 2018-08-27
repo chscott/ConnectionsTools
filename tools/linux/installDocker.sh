@@ -27,6 +27,7 @@ function init() {
     forceAufsStorageDriver="false"    
     directLvmDevice=""
     selectedStorageDriver=""
+    warnings="false"
 
     while [[ ${#} > 0 ]]; do
         local key="${1}"
@@ -65,14 +66,9 @@ function init() {
     # If RHEL, --force-rhel-install must be provided to install
     if [[ "$(getDistro)" == "rhel" ]]; then
         if [[ "${forceRHELInstall}" != "true" ]]; then
-            exitWithError "The docker-ce package is not officially supported on RHEL. To force installation anyway, use the --force-rhel-install option"
+            exitWithoutError "The docker-ce package is not officially supported on RHEL. Use the --force-rhel-install option to install anyway."
         fi
     fi
-
-    # Print log header
-    outputToLog "Distro: $(getDistro)"
-    outputToLog "Major version: $(getOSMajorVersion)"
-    outputToLog "Minor version: $(getOSMinorVersion)"
 
 }
 
@@ -156,6 +152,9 @@ function warn() {
     local normalText=$'\e[0m'
     local rightAlign="%-7s\n"
 
+    # Remember that a warning was generated
+    warnings="true"
+
     # To terminal
     outputFormatted "${yellowText}Warning${normalText}" "${rightAlign}" "${terminal}"
 
@@ -204,9 +203,10 @@ function exitWithoutError() {
 
 }
 
-# Print a table of requirements if the user requested it via the --check option. Output should go to the terminal
+# Print a table of requirements if the user requested it via the --check option
 function checkForRequirements() {
 
+    local file="${1}"
     local distro="$(getDistro)"
     local canUseOverlay2="$(canUseOverlay2StorageDriver)"
     local canUseAufs="$(canUseAufsStorageDriver)"
@@ -218,20 +218,19 @@ function checkForRequirements() {
     if [[ "${canUseAufs}" == "true" ]]; then canUseAufs="Yes"; else canUseAufs="No"; fi
     if [[ "${canUseDMDirect}" == "true" ]]; then canUseDMDirect="Yes"; else canUseDMDirect="No"; fi
 
-    # Pass the file to print to
-    printCPRequirementsTable "${terminal}"
+    outputCPRequirementsTable "${file}"
 
-    outputToTerminal "" 
-    output2ColumnTableRow "Storage driver" "Available" "${format}" "${terminal}"
-    output2ColumnTableRow "--------------" "---------" "${format}" "${terminal}"
-    output2ColumnTableRow "overlay2" "${canUseOverlay2}" "${format}" "${terminal}"
-    output2ColumnTableRow "aufs" "${canUseAufs}" "${format}" "${terminal}"
-    output2ColumnTableRow "devicemapper-direct" "${canUseDMDirect}" "${format}" "${terminal}"
-    output2ColumnTableRow "devicemapper-loop" "Yes" "${format}" "${terminal}"
-    outputToTerminal ""
+    output "" "${file}" 
+    output2ColumnTableRow "Storage driver" "Available" "${format}" "${file}"
+    output2ColumnTableRow "--------------" "---------" "${format}" "${file}"
+    output2ColumnTableRow "overlay2" "${canUseOverlay2}" "${format}" "${file}"
+    output2ColumnTableRow "aufs" "${canUseAufs}" "${format}" "${file}"
+    output2ColumnTableRow "devicemapper-direct" "${canUseDMDirect}" "${format}" "${file}"
+    output2ColumnTableRow "devicemapper-loop" "Yes" "${format}" "${file}"
+    output "" "${file}"
 
     if [[ "${distro}" == "rhel" ]]; then
-        outputToTerminal "*RHEL is not supported with docker-ce. You can install it anyway using the --force-rhel-install option."
+        output "*RHEL is not supported with docker-ce. You can install it anyway using the --force-rhel-install option." "${file}"
     fi
 
 }
@@ -241,15 +240,15 @@ function checkForPrereqs() {
 
     # Check the platform requirements
     outputOperation "Verifying platform meets requirements to install Component Pack..."
-    if [[ "$(isCPSupportedPlatform)" == "false" ]]; then fail; else pass; fi
+    if [[ "$(isCPSupportedPlatform)" == "true" ]]; then pass; else fail; fi
     
     # Verify docker-ce is not already installed
-    outputOperation "Verifying docker-ce is not already installed..."
-    if [[ "$(isDockerCEInstalled)" == "true" ]]; then fail; else pass; fi
+    outputOperation "Verifying Docker is not already installed..."
+    if [[ "$(isDockerCEInstalled)" == "false" ]]; then pass; else fail; fi
 
     # Verify ${dockerDataDir} does not exist
     outputOperation "Verifying ${dockerDataDir} does not exist..."
-    if [[ -d "${dockerDataDir}" ]]; then fail; else pass; fi
+    if [[ ! -d "${dockerDataDir}" ]]; then pass; else fail; fi
 
 }
 
@@ -936,21 +935,34 @@ function configAutoStart() {
 
 }
 
+# Report status
+function term() {
+
+    outputToLog "Printing Docker configuration..."
+    docker info
+
+    outputToTerminal ""
+    if [[ "${warnings}" == "false" ]]; then
+        outputToTerminal "Docker has been installed successfully! Run 'sudo docker run hello-world' to confirm normal operation."
+    else
+        outputToTerminal "Docker has been installed with warnings. Review ${logFile} for additional details."
+    fi
+
+}
+
 init "${@}"
 
 if [[ "${checkRequirements}" == "true" ]]; then
     # Just check requirements
-    checkForRequirements
+    checkForRequirements "${terminal}"
 else
     # Do the install
+    checkForRequirements "${logFile}"
     checkForPrereqs
     checkForObsoletePackages
     determineStorageDriver
     install
     configStorageDriver
     configAutoStart
-    outputToLog "Printing Docker configuration..."
-    docker info
-    outputToTerminal ""
-    outputToTerminal "docker-ce has been installed successfully! Run 'sudo docker run hello-world' to confirm normal operation."
+    term
 fi 

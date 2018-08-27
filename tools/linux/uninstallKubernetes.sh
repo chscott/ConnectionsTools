@@ -9,6 +9,7 @@ function init() {
     # Redirect output to the log. Point 101 to the original 1 so some output can be sent to the terminal
     exec 101>&1
     exec 1>>"${logFile}" 2>&1
+    terminal="/proc/${BASHPID}/fd/101"
 
     # Source the prereqs
     scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,14 +21,16 @@ function init() {
     # Process the user arguments and set global variables
     kubernetesDirs=(
         "/var/lib/calico"
-        "/etc/cni"
         "/var/lib/cni"
         "/var/lib/dockershim"
         "/var/lib/etcd"
         "/var/lib/kubelet"
+        "/etc/cni"
         "/etc/kubernetes"
     )
     clean="false"
+    force="false"
+    warnings="false"
 
     while [[ ${#} > 0 ]]; do
         local key="${1}"
@@ -39,60 +42,135 @@ function init() {
             --clean)
                 clean="true"
                 shift;;
+            --force)
+                force="true"
+                shift;;
             *)
-                printToConsole "Unrecognized argument ${key}"
+                outputToTerminal "Unrecognized argument ${key}"
                 exit 1
         esac
     done
 
-    # Print log header
-    printToLog "Distro: $(getDistro)"
-    printToLog "Major version: $(getOSMajorVersion)"
-    printToLog "Minor version: $(getOSMinorVersion)"
-
 }
 
-# Print the usage text to the console
+# Print the usage text to the terminal
 function usage() {
 
-    printToConsole "Usage: uninstallKubernetes.sh [OPTIONS]"
-    printToConsole ""
-    printToConsole "Options:"
-    printToConsole ""
-    printToConsole "--clean"
-    printToConsole ""
-    printToConsole "In addition to uninstalling Kubernetes, delete the Kubernetes data and configuration directories."
+    outputToTerminal "Usage: uninstallKubernetes.sh [OPTIONS]"
+    outputToTerminal ""
+    outputToTerminal "Options:"
+    outputToTerminal ""
+    outputToTerminal "--clean"
+    outputToTerminal "  In addition to uninstalling Kubernetes, delete the Kubernetes data and configuration directories."
+    outputToTerminal ""
+    outputToTerminal "--force"
+    outputToTerminal "  Ignore failures when tearing down the node."
 
 }
 
-# Print to the console (and to the log)
-function printToConsole() {
+# Write a message to the log file
+function outputToLog() {
+    
+    local message="${1}"
+    
+    outputTS "${message}" "${logFile}"
+
+}
+
+# Write a message to the terminal
+function outputToTerminal() {
 
     local message="${1}"
-
-	printf "%s\n" "${message}" >&101
-    printToLog "${message}"
+    
+    output "${message}" "${terminal}"
 
 }
 
-# Print to the specified log
-function printToLog() {
+# Write operation message to log and terminal
+function outputOperation() {
 
     local message="${1}"
-    local now="$(date '+%F %T')"
+    local leftColumnTerminal="%-120.120s"
+    local leftColumnLog="%-120.120s\n"
 
-	printf "%s %s\n" "${now}" "${message}" >>"${logFile}"
+    outputFormattedTS "${message}" "${leftColumnTerminal}" "${terminal}"
+    outputFormattedTS "${message}" "${leftColumnLog}" "${logFile}"
 
 }
 
-# Print error message and exit
+# Print a failure message
+function fail() {
+
+    local redText=$'\e[1;31m'
+    local normalText=$'\e[0m'
+    local rightAlign="%-6s\n\n"
+
+    # To terminal
+    outputFormatted "${redText}Failed${normalText}" "${rightAlign}" "${terminal}"
+    outputToTerminal "Review ${logFile} for additional details"
+
+    # To log
+    outputTS "The previous operation failed" "${logFile}"
+    
+    exit 1
+
+}
+
+# Print a warning message
+function warn() {
+
+    local yellowText=$'\e[1;33m'
+    local normalText=$'\e[0m'
+    local rightAlign="%-7s\n"
+
+    # Remember that a warning was generated
+    warnings="true"
+
+    # To terminal
+    outputFormatted "${yellowText}Warning${normalText}" "${rightAlign}" "${terminal}"
+
+    # To log
+    outputTS "The previous operation completed with warnings" "${logFile}"
+
+}
+
+# Print a success message
+function pass() {
+
+    local greenText=$'\e[1;32m'
+    local normalText=$'\e[0m'
+    local rightAlign="%-9s\n"
+
+    # To terminal
+    outputFormatted "${greenText}Completed${normalText}" "${rightAlign}" "${terminal}"
+
+    # To log
+    outputTS "The previous operation completed successfully" "${logFile}"
+
+}
+
+# Exit with error code and the supplied error message
 function exitWithError() {
 
     local message="${1}"
 
-    printToConsole "${message}."
-    printToConsole "Review ${logFile} for additional details"
+    outputToTerminal "${message}"
+    outputToTerminal "Review ${logFile} for additional details"
+    outputToLog "${message}"
+
     exit 1
+
+}
+
+# Exit without error code and with the supplied message 
+function exitWithoutError() {
+
+    local message="${1}"
+
+    outputToTerminal "${message}"
+    outputToLog "${message}"
+
+    exit 0
 
 }
 
@@ -101,25 +179,35 @@ function tearDownNode() {
 
     local thisNode="$(uname -n)"
 
+    outputToLog "Tearing down node ${thisNode}..."
+
     if [[ "$(isNodeInK8sCluster "${thisNode}")" == "true" ]]; then
-        # This node is part of the cluster
-        printToConsole "Removing node ${thisNode} from the Kubernetes cluster..." 
-        if [[ "$(commandExists "kubectl")" == "true" ]]; then
-            kubectl drain "${thisNode}" --delete-local-data --force --ignore-daemonsets
-            kubectl delete node "${thisNode}"
-        else
-            printToConsole "ERROR! Unable to drain and delete node because kubectl is not installed on this system." 
-            exitWithError "Drain and delete this node before attempting to uninstall Kubernetes."
+
+        # If this is the master node, make sure there are no other nodes in the cluster
+        if [[ "$(getK8sNodeType "${thisNode}")" == "master" ]]; then
+            outputOperation "Verifying there are no non-master nodes in cluster..."
+            local nonMasterNodeCount="$(getK8sNonMasterNodeCount)"
+            if (( $(getK8sNonMasterNodeCount) == 0 )); then
+                pass
+            else
+                # Either unable to get node count or there is at least 1 non-master node. Use --force option to continue or abort
+                outputToLog "Kubernets nodes:"
+                kubectl get nodes --no-headers
+                if [[ "${force}" == "true" ]]; then warn; else fail; fi
+            fi
         fi
-        if [[ "$(commandExists "kubeadm")" == "true" ]]; then
-            kubeadm reset --force --cri-socket "unix:///var/run/dockershim.sock"
-        else
-            printToConsole "WARNING! Unable to reset installed state because kubeadm is not installed on this system." 
-        fi
+        
+        # Clean up the node
+        outputOperation "Draining node ${thisNode}..."
+        kubectl drain "${thisNode}" --delete-local-data --force --ignore-daemonsets && pass || if [[ "${force}" == "true" ]]; then warn; else fail; fi 
+        outputOperation "Deleting node ${thisNode}..."
+        kubectl delete node "${thisNode}" && pass || if [[ "${force}" == "true" ]]; then warn; else fail; fi
+        outputOperation "Undoing changes made by kubeadm..."
+        kubeadm reset --force --cri-socket "unix:///var/run/dockershim.sock" && pass || if [[ "${force}" == "true" ]]; then warn; else fail; fi
+
     else
         # This node is not part of the cluster
-        printToLog "This node is not in the Kubernetes cluster. Node name: ${thisNode}"
-        
+        outputToLog "This node is not in the Kubernetes cluster. Node name: ${thisNode}"
     fi
 
 }
@@ -134,19 +222,22 @@ function uninstallPackage() {
     if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
         if yum list installed "${package}"; then 
             yum versionlock delete "${package}"
-            yum remove -y "${package}" || exitWithError "Error uninstalling Kubernetes components"
+            outputOperation "Removing package ${package}..."
+            yum remove -y "${package}" && pass || fail
         fi
     # dnf
     elif [[ "${distro}" == "fedora" ]]; then
         if dnf list installed "${package}"; then 
             dnf versionlock delete "${package}"
-            dnf remove -y "${package}" || exitWithError "Error uninstalling Kubernetes components"
+            outputOperation "Removing package ${package}..."
+            dnf remove -y "${package}" && pass || fail
         fi
     # apt
     elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
-        if dpkg-query --list "${package}"; then 
+        if dpkg-query --list "${package}" | grep "^.i"; then 
             apt-mark unhold "${package}"
-            apt-get purge -y "${package}" || exitWithError "Error uninstalling Kubernetes components"
+            outputOperation "Removing package ${package}..."
+            apt-get purge -y "${package}" && pass || fail
         fi
     fi
 
@@ -161,26 +252,31 @@ function uninstall() {
         "kubelet"
     )
          
-    printToConsole "Uninstalling Kubernetes..."
-
     for package in "${packages[@]}"; do
-        printToLog "Uninstalling package ${package}..."
         uninstallPackage "${package}"
     done
-
-    printToConsole "Successfully uninstalled Kubernetes"
 
 }
 
 # Delete additional Kubernetes config/data (not yet implemented)
 function makeClean() {
 
-    printToConsole "Deleting Kubernetes directories..."
-
     for directory in "${kubernetesDirs[@]}"; do
-        printToLog "Deleting ${directory}..."
-        rm -f -r "${directory}"
+        outputOperation "Deleting ${directory}..."
+        rm -f -r "${directory}" && pass || fail
     done 
+
+}
+
+# Report status
+function term() {
+
+    outputToTerminal ""
+    if [[ "${warnings}" == "false" ]]; then
+        outputToTerminal "Kubernetes has been uninstalled successfully!"
+    else
+        outputToTerminal "Kubernetes has been uninstalled with warnings. Review ${logFile} for additional details." 
+    fi
 
 }
 
@@ -188,17 +284,22 @@ init "${@}"
 
 if [[ "${clean}" == "true" ]]; then
     # Since this is destructive, ask for confirmation
-    printToConsole "WARNING! The --clean option will delete all Kubernetes directories, removing all configuration and data"
-    printToConsole ""
-    read -p "If you are certain you want to do this, enter 'yes' and press Enter: " answer 2>&101
-    if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then
+    outputToTerminal ""
+    outputToTerminal "WARNING! The --clean option will remove all Kubernetes directories."
+    outputToTerminal "All configuration and data will be deleted!"
+    outputToTerminal ""
+    read -p "If you are certain you want to do this, enter 'yes' and press Enter: " answer 2>>"${terminal}"
+    outputToTerminal ""
+    if [[ -n "${answer}" && "${answer}" == "yes" ]]; then
         tearDownNode
         uninstall
         makeClean
+        term
     else
-        printToConsole "Aborting Kubernetes uninstall"
+        exitWithoutError "Aborting Kubernetes uninstall"
     fi
 else
     tearDownNode
     uninstall
+    term
 fi

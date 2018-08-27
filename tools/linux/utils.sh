@@ -394,43 +394,40 @@ CP_FEDORA_SUPPORTED_RELEASE="25"
 CP_DEBIAN_SUPPORTED_RELEASE="9"
 CP_UBUNTU_SUPPORTED_RELEASE="16.04"
 
-# Prints an output table of requirements for installing Component Pack
-# $1: optional file to print to
-function printCPRequirementsTable() {
+# Output a table of requirements for installing Component Pack
+function outputCPRequirementsTable() {
 
     local file="${1}"
     local distro="$(getDistro)"
-    local greenText=$'\e[1;32m'
-    local redText=$'\e[1;31m'
-    local normalText=$'\e[0m'
+    local format="%-20s\t%-20s\t%-20s\n"
 
-    printf "Component Pack ${CP_SUPPORTED_RELEASE} requirements:\n" >>"${file}"
-    printf "\n" >>"${file}"
-    printf "%-20s\t%-20s\t%-20s\n" "Requirement" "Found" "Requires" >>"${file}" 
-    printf "%-20s\t%-20s\t%-20s\n" "-----------" "-----" "--------" >>"${file}"
-    printf "%-20s\t%-20s\t%-20s\n" "Distro:" "${distro}" "centos, rhel*, fedora, debian or ubuntu" >>"${file}" 
+    output "Component Pack ${CP_SUPPORTED_RELEASE} requirements:" "${file}"
+    output "" "${file}"
+    output3ColumnTableRow "Requirement" "Found" "Requires" "${format}" "${file}"
+    output3ColumnTableRow "-----------" "-----" "--------" "${format}" "${file}"
+    output3ColumnTableRow "Distro:" "${distro}" "centos, rhel*, fedora, debian or ubuntu" "${format}" "${file}"
     if [[ "${distro}" == "centos" ]]; then
-        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_CENTOS_SUPPORTED_RELEASE}" >>"${file}"
+        output3ColumnTableRow "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_CENTOS_SUPPORTED_RELEASE}" "${format}" "${file}"
     elif [[ "${distro}" == "rhel" ]]; then
-        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_RHEL_SUPPORTED_RELEASE}" >>"${file}"
+        output3ColumnTableRow "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_RHEL_SUPPORTED_RELEASE}" "${format}" "${file}"
     elif [[ "${distro}" == "fedora" ]]; then
-        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion)" "${CP_FEDORA_SUPPORTED_RELEASE}" >>"${file}"
+        output3ColumnTableRow "Version:" "$(getOSMajorVersion)" "${CP_FEDORA_SUPPORTED_RELEASE}" "${format}" "${file}"
     elif [[ "${distro}" == "debian" ]]; then
-        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion)" "${CP_DEBIAN_SUPPORTED_RELEASE}" >>"${file}"
+        output3ColumnTableRow "Version:" "$(getOSMajorVersion)" "${CP_DEBIAN_SUPPORTED_RELEASE}" "${format}" "${file}"
     elif [[ "${distro}" == "ubuntu" ]]; then
-        printf "%-20s\t%-20s\t%-20s\n" "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_UBUNTU_SUPPORTED_RELEASE}" >>"${file}"
+        output3ColumnTableRow "Version:" "$(getOSMajorVersion).$(getOSMinorVersionDisplay)" "${CP_UBUNTU_SUPPORTED_RELEASE}" "${format}" "${file}"
     fi
-    printf "%-20s\t%-20s\t%-20s\n" "Machine architecture:" "$(getMachineArchitecture)" "x86_64" >>"${file}" 
-    printf "%-20s\t%-20s\t%-20s\n" "Logical cores:" "$(getLogicalCores)" "At least 2" >>"${file}" 
-    printf "%-20s\t%-20s\t%-20s\n" "Available memory:" "$(getAvailableMemory)" "At least 2097152" >>"${file}"
-    printf "%-20s\t%-20s\t%-20s\n" "Total swap:" "$(getSwapMemory)" "Must be 0" >>"${file}"
-    printf "\n" >>"${file}"
+    output3ColumnTableRow "Machine architecture:" "$(getMachineArchitecture)" "x86_64" "${format}" "${file}"
+    output3ColumnTableRow "Logical cores:" "$(getLogicalCores)" "At least 2" "${format}" "${file}"
+    output3ColumnTableRow "Available memory:" "$(getAvailableMemory)" "At least 2097152" "${format}" "${file}"
+    output3ColumnTableRow "Total swap:" "$(getSwapMemory)" "Must be 0" "${format}" "${file}"
+    output "" "${file}"
     if [[ "$(isCPSupportedPlatform)" == "true" ]]; then
-        local isSupported="${greenText}Yes${normalText}"
+        local isSupported="Yes"
     else
-        local isSupported="${redText}No${normalText}"
+        local isSupported="No"
     fi
-    printf "%s %s\n" "Supported for Component Pack:" "${isSupported}" >>"${file}"
+    output "Supported for Component Pack: ${isSupported}" "${file}"
 
 }
 
@@ -644,7 +641,7 @@ function checkForK8sWorkerNodePortsInUse() {
 
 }
 
-# Return whether or not this system is a node in the Kubernetes cluster
+# Return whether or not a given node in the Kubernetes cluster
 function isNodeInK8sCluster() {
 
     local nodeName="${1}"
@@ -657,6 +654,33 @@ function isNodeInK8sCluster() {
     fi
 
     echo "${isInCluster}"
+
+}
+
+# Return the node type
+function getK8sNodeType() {
+
+    local nodeName="${1}"
+    local nodeType="N/A" 
+    
+    if [[ "$(commandExists "kubectl")" == "true" ]]; then
+        nodeType="$(kubectl get nodes | grep "${nodeName}" | awk '{print $3}')"
+    fi
+
+    echo "${nodeType}"
+
+}
+
+# Returns the count of non-master nodes
+function getK8sNonMasterNodeCount() {
+
+    local nonMasterNodeCount="-1"
+
+    if [[ "$(commandExists "kubectl")" == "true" ]]; then
+        nonMasterNodeCount="$(kubectl get nodes --no-headers | grep -v -c "master")"
+    fi
+
+    echo "${nonMasterNodeCount}"
 
 }
 
@@ -1467,6 +1491,26 @@ function output2ColumnTableRow() {
 
 }
 
+# Print a two-column table row to two files
+function teeOutput2ColumnTableRow() {
+
+    local column1="${1}"
+    local column2="${2}"
+    local format="${3}"
+    local file1="${4}"
+    local file2="${5}"
+
+    if [[ -n "${column1}" && -n "${column2}" && -n "${format}" ]]; then
+        if [[ -w "${file1}" ]]; then
+            printf "${format}" "${column1}" "${column2}" >>"${file1}"
+        fi
+        if [[ -w "${file2}" ]]; then
+            printf "${format}" "${column1}" "${column2}" >>"${file2}"
+        fi
+    fi
+
+}
+
 # Print a three-column table row to the provided file
 function output3ColumnTableRow() {
 
@@ -1478,6 +1522,27 @@ function output3ColumnTableRow() {
 
     if [[ -n "${column1}" && -n "${column2}" && -n "${column3}" && -n "${format}" ]]; then
         printf "${format}" "${column1}" "${column2}" "${column3}" >>"${file}"
+    fi
+
+}
+
+# Print a three-column table row to two files
+function teeOutput3ColumnTableRow() {
+
+    local column1="${1}"
+    local column2="${2}"
+    local column3="${3}"
+    local format="${4}"
+    local file1="${5}"
+    local file2="${6}"
+
+    if [[ -n "${column1}" && -n "${column2}" && -n "${column3}" && -n "${format}" ]]; then
+        if [[ -w "${file1}" ]]; then
+            printf "${format}" "${column1}" "${column2}" "${column3}" >>"${file1}"
+        fi
+        if [[ -w "${file2}" ]]; then
+            printf "${format}" "${column1}" "${column2}" "${column3}" >>"${file2}"
+        fi
     fi
 
 }

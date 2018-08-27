@@ -21,7 +21,12 @@ function init() {
     # Process the user arguments and set global variables
     dockerDataDir="/var/lib/docker"
     dockerConfigDir="/etc/docker"
+    dockerDirs=(
+        "${dockerDataDir}"
+        "${dockerConfigDir}"
+    )
     clean="false"
+    warnings="false"
 
     while [[ ${#} > 0 ]]; do
         local key="${1}"
@@ -34,58 +39,52 @@ function init() {
                 clean="true"
                 shift;;
             *)
-                printToConsole "Unrecognized argument ${key}"
+                outputToTerminal "Unrecognized argument ${key}"
                 exit 1
         esac
     done
 
-    # Print log header
-    printToLog "Distro: $(getDistro)"
-    printToLog "Major version: $(getOSMajorVersion)"
-    printToLog "Minor version: $(getOSMinorVersion)"
-
 }
 
-# Print the usage text to the console
+# Print the usage text to the terminal
 function usage() {
 
-    # Redirect FD 1 to terminal so each line doesn't have to be redirected
-    exec 1>>"${terminal}"
-
-    printf "%s\n" "Usage: uninstallDocker.sh [OPTIONS]"
-    printf "%s\n" ""
-    printf "%s\n" "Options:"
-    printf "%s\n" ""
-    printf "%s\n" "--clean"
-    printf "%s\n" "  In addition to uninstalling docker-ce, delete the Docker data and configuration directories."
-
-    # Redirect FD 1 back to the log file
-    exec 1>>"${logFile}"
+    outputToTerminal "Usage: uninstallDocker.sh [OPTIONS]"
+    outputToTerminal ""
+    outputToTerminal "Options:"
+    outputToTerminal ""
+    outputToTerminal "--clean"
+    outputToTerminal "  In addition to uninstalling docker-ce, delete the Docker data and configuration directories."
 
 }
 
-# Print to the log
-function printToLog() {
-
+# Write a message to the log file
+function outputToLog() {
+    
     local message="${1}"
-    local now="$(date '+%F %T')"
-
-	printf "%s\n" "${now} ${message}"
+    
+    outputTS "${message}" "${logFile}"
 
 }
 
-# Print the operation
-function operation() {
+# Write a message to the terminal
+function outputToTerminal() {
 
     local message="${1}"
-    local now="$(date '+%F %T')"
-    local leftAlign="%-120.120s"
+    
+    output "${message}" "${terminal}"
 
-    # To terminal
-    printf "${leftAlign}" "${now} ${message}" >>"${terminal}"
+}
 
-    # To log
-    printToLog "${now} ${message}"
+# Write operation message to log and terminal
+function outputOperation() {
+
+    local message="${1}"
+    local leftColumnTerminal="%-120.120s"
+    local leftColumnLog="%-120.120s\n"
+
+    outputFormattedTS "${message}" "${leftColumnTerminal}" "${terminal}"
+    outputFormattedTS "${message}" "${leftColumnLog}" "${logFile}"
 
 }
 
@@ -97,11 +96,11 @@ function fail() {
     local rightAlign="%-6s\n\n"
 
     # To terminal
-    printf "${rightAlign}" "${redText}Failed${normalText}" >>"${terminal}"
-    printf "%s\n" "Review ${logFile} for additional details" >>"${terminal}"
+    outputFormatted "${redText}Failed${normalText}" "${rightAlign}" "${terminal}"
+    outputToTerminal "Review ${logFile} for additional details"
 
     # To log
-    printToLog "Operation failed"
+    outputTS "The previous operation failed" "${logFile}"
     
     exit 1
 
@@ -114,11 +113,14 @@ function warn() {
     local normalText=$'\e[0m'
     local rightAlign="%-7s\n"
 
+    # Remember that a warning was generated
+    warnings="true"
+
     # To terminal
-    printf "${rightAlign}" "${yellowText}Warning${normalText}" >>"${terminal}"
-    
+    outputFormatted "${yellowText}Warning${normalText}" "${rightAlign}" "${terminal}"
+
     # To log
-    printToLog "Operation completed with warnings"
+    outputTS "The previous operation completed with warnings" "${logFile}"
 
 }
 
@@ -130,10 +132,10 @@ function pass() {
     local rightAlign="%-9s\n"
 
     # To terminal
-    printf "${rightAlign}" "${greenText}Completed${normalText}" >>"${terminal}"
+    outputFormatted "${greenText}Completed${normalText}" "${rightAlign}" "${terminal}"
 
     # To log
-    printToLog "Operation completed successfully"
+    outputTS "The previous operation completed successfully" "${logFile}"
 
 }
 
@@ -142,8 +144,10 @@ function exitWithError() {
 
     local message="${1}"
 
-    printf "%s\n" "${message}" | tee "${terminal}"
-    printf "%s\n" "Review ${logFile} for additional details" | tee "${terminal}"
+    outputToTerminal "${message}"
+    outputToTerminal "Review ${logFile} for additional details"
+    outputToLog "${message}"
+
     exit 1
 
 }
@@ -153,7 +157,9 @@ function exitWithoutError() {
 
     local message="${1}"
 
-    printf "%s\n" "${message}" | tee "${terminal}" 
+    outputToTerminal "${message}"
+    outputToLog "${message}"
+
     exit 0
 
 }
@@ -162,19 +168,21 @@ function exitWithoutError() {
 function checkForPrereqs() {
 
     # See if Kubernetes is installed
-    operation "Verifying Kubernetes is not installed..."
-    if [[ "$(isK8sComponentInstalled "kubeadm")" == "true" || 
-          "$(isK8sComponentInstalled "kubectl")" == "true" ||
-          "$(isK8sComponentInstalled "kubelet")" == "true" ]]; then fail; else pass; fi
+    outputOperation "Verifying Kubernetes is not installed..."
+    if [[ "$(isK8sComponentInstalled "kubeadm")" == "false" && 
+          "$(isK8sComponentInstalled "kubectl")" == "false" && 
+          "$(isK8sComponentInstalled "kubelet")" == "false" ]]; then pass; else fail; fi
 
 }
 
 # Stop any running containers
 function stopContainers() {
 
-        if (( $(docker container ls --quiet | wc -l) > 0 )); then
-            operation "Stopping running containers..."
-            docker container stop $(docker container ls --quiet) && pass || fail
+        if [[ "$(commandExists "docker")" == "true" ]]; then
+            if (( $(docker container ls --quiet | wc -l) > 0 )); then
+                outputOperation "Stopping running containers..."
+                docker container stop $(docker container ls --quiet) && pass || fail
+            fi
         fi
 
 }
@@ -189,21 +197,21 @@ function uninstallPackage() {
     if [[ "${distro}" == "centos" || "${distro}" == "rhel" ]]; then
         if yum list installed "${package}"; then 
             yum versionlock delete "${package}"
-            operation "Removing package ${package}..."
+            outputOperation "Removing package ${package}..."
             yum remove -y "${package}" && pass || fail
         fi
     # dnf
     elif [[ "${distro}" == "fedora" ]]; then
         if dnf list installed "${package}"; then 
             dnf versionlock delete "${package}"
-            operation "Removing package ${package}..."
+            outputOperation "Removing package ${package}..."
             dnf remove -y "${package}" && pass || fail
         fi
     # apt
     elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
         if dpkg-query --list "${package}" | grep "^.i"; then 
             apt-mark unhold "${package}"
-            operation "Removing package ${package}..."
+            outputOperation "Removing package ${package}..."
             apt-get purge -y "${package}" && pass || fail
         fi
     fi
@@ -238,9 +246,22 @@ function uninstall() {
 # Delete the Docker config and data directories
 function makeClean() {
 
-    operation "Deleting ${dockerConfigDir} and ${dockerDataDir}..."
+    for directory in "${dockerDirs[@]}"; do
+        outputOperation "Deleting ${directory}..."
+        rm -f -r "${directory}" && pass || fail
+    done 
 
-    rm -f -r "${dockerConfigDir}" "${dockerDataDir}" && pass || fail
+}
+
+# Report status
+function term() {
+
+    outputToTerminal ""
+    if [[ "${warnings}" == "false" ]]; then
+        outputToTerminal "Docker has been uninstalled successfully!"
+    else
+        outputToTerminal "Docker has been uninstalled with warnings. Review ${logFile} for additional details." 
+    fi
 
 }
 
@@ -248,22 +269,24 @@ init "${@}"
 
 if [[ "${clean}" == "true" ]]; then
     # Since this is destructive, ask for confirmation
-    printf "%s" "WARNING! The --clean option will delete ${dockerConfigDir} and ${dockerDataDir}, " >>"${terminal}"
-    printf "%s\n\n" "removing all configuration, images and containers." >>"${terminal}"
+    outputToTerminal ""
+    outputToTerminal "WARNING! The --clean option will remove all Docker directories."
+    outputToTerminal "All configuration, images and containers will be deleted!"
+    outputToTerminal ""
     read -p "If you are certain you want to do this, enter 'yes' and press Enter: " answer 2>>"${terminal}"
-    printf "\n" >>"${terminal}"
-    if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then
+    outputToTerminal ""
+    if [[ -n "${answer}" && "${answer}" == "yes" ]]; then
         checkForPrereqs
         stopContainers
         uninstall
         makeClean
-        printf "\n%s\n" "docker-ce has been uninstalled successfully!" >>"${terminal}"
+        term
     else
-        printf "%s\n" "Aborting docker-ce uninstall" >>"${terminal}"
+        exitWithError "Aborting Docker uninstall"
     fi
 else
     checkForPrereqs
     stopContainers
     uninstall
-    printf "\n%s\n" "docker-ce has been uninstalled successfully!" >>"${terminal}"
+    term
 fi

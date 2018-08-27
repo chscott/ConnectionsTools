@@ -9,6 +9,7 @@ function init() {
     # Redirect output to the log. Point 101 to the original 1 so some output can be sent to the terminal
     exec 101>&1
     exec 1>>"${logFile}" 2>&1
+    terminal="/proc/${BASHPID}/fd/101"
 
     # Source the prereqs
     scriptDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,7 +19,6 @@ function init() {
     checkForRoot
 
     # Process the user arguments and set global variables
-    clean="false"
 
     while [[ ${#} > 0 ]]; do
         local key="${1}"
@@ -27,99 +27,151 @@ function init() {
                 usage
                 exit 0
                 shift;;
-            --clean)
-                clean="true"
-                shift;;
             *)
-                printToConsole "Unrecognized argument ${key}"
+                outputToTerminal "Unrecognized argument ${key}"
                 exit 1
         esac
     done
 
-    # Print log header
-    printToLog "Distro: $(getDistro)"
-    printToLog "Major version: $(getOSMajorVersion)"
-    printToLog "Minor version: $(getOSMinorVersion)"
-
 }
 
-# Print the usage text to the console
+# Print the usage text to the terminal
 function usage() {
 
-    printToConsole "Usage: uninstallHelm.sh [OPTIONS]"
-    printToConsole ""
-    printToConsole "Options:"
-    printToConsole ""
-    printToConsole "--clean"
-    printToConsole ""
-    printToConsole "Not yet implemented."
+    outputToTerminal "Usage: uninstallHelm.sh"
 
 }
 
-# Print to the console (and to the log)
-function printToConsole() {
-
+# Write a message to the log file
+function outputToLog() {
+    
     local message="${1}"
-
-	printf "%s\n" "${message}" >&101
-    printToLog "${message}"
+    
+    outputTS "${message}" "${logFile}"
 
 }
 
-# Print to the specified log
-function printToLog() {
+# Write a message to the terminal
+function outputToTerminal() {
 
     local message="${1}"
-    local now="$(date '+%F %T')"
-
-	printf "%s %s\n" "${now}" "${message}" >>"${logFile}"
+    
+    output "${message}" "${terminal}"
 
 }
 
-# Print error message and exit
-function exitWithError() {
+# Write operation message to log and terminal
+function outputOperation() {
 
     local message="${1}"
+    local leftColumnTerminal="%-120.120s"
+    local leftColumnLog="%-120.120s\n"
 
-    printToConsole "${message}."
-    printToConsole "Review ${logFile} for additional details"
+    outputFormattedTS "${message}" "${leftColumnTerminal}" "${terminal}"
+    outputFormattedTS "${message}" "${leftColumnLog}" "${logFile}"
+
+}
+
+# Print a failure message
+function fail() {
+
+    local redText=$'\e[1;31m'
+    local normalText=$'\e[0m'
+    local rightAlign="%-6s\n\n"
+
+    # To terminal
+    outputFormatted "${redText}Failed${normalText}" "${rightAlign}" "${terminal}"
+    outputToTerminal "Review ${logFile} for additional details"
+
+    # To log
+    outputTS "The previous operation failed" "${logFile}"
+    
     exit 1
+
+}
+
+# Print a warning message
+function warn() {
+
+    local yellowText=$'\e[1;33m'
+    local normalText=$'\e[0m'
+    local rightAlign="%-7s\n"
+
+    # Remember that a warning was generated
+    warnings="true"
+
+    # To terminal
+    outputFormatted "${yellowText}Warning${normalText}" "${rightAlign}" "${terminal}"
+
+    # To log
+    outputTS "The previous operation completed with warnings" "${logFile}"
+
+}
+
+# Print a success message
+function pass() {
+
+    local greenText=$'\e[1;32m'
+    local normalText=$'\e[0m'
+    local rightAlign="%-9s\n"
+
+    # To terminal
+    outputFormatted "${greenText}Completed${normalText}" "${rightAlign}" "${terminal}"
+
+    # To log
+    outputTS "The previous operation completed successfully" "${logFile}"
 
 }
 
 # Do the uninstall
 function uninstall() {
+
+    local installDir="/bin"
          
-    printToConsole "Uninstalling Helm..."
+    # Uninstall server
+    outputOperation "Uninstalling Helm server. This make take a few minutes..."
+    helm reset --force && pass || fail
 
-    # Reset Helm
-    helm reset --force || exitWithError "Unable to uninstall Helm"
-
-    printToConsole "Successfully uninstalled Helm..."
+    # Uninstall client
+    outputOperation "Uninstalling Helm client..."
+    rm -f "${installDir}/helm" && pass || fail
 
 }
 
-# Delete additional Helm config/data (not yet implemented)
-function makeClean() {
+# Exit with error code and the supplied error message
+function exitWithError() {
 
-    # Not sure what is needed here, if anything
-    log "makeClean function not yet implemented"
+    local message="${1}"
+
+    outputToTerminal "${message}"
+    outputToTerminal "Review ${logFile} for additional details"
+    outputToLog "${message}"
+
+    exit 1
+
+}
+
+# Exit without error code and with the supplied message 
+function exitWithoutError() {
+
+    local message="${1}"
+
+    outputToTerminal "${message}"
+    outputToLog "${message}"
+
+    exit 0
+
+}
+
+# Report status
+function term() {
+
+    outputToTerminal ""
+    outputToTerminal "Helm successfully uninstalled!"
 
 }
 
 init "${@}"
 
-if [[ "${clean}" == "true" ]]; then
-    # Since this is destructive, ask for confirmation
-    printToConsole "WARNING! The --clean option will delete all Helm configuration and data"
-    printToConsole ""
-    read -p "If you are certain you want to do this, enter 'yes' and press Enter: " answer 2>&101
-    if [[ ! -z "${answer}" && "${answer}" == "yes" ]]; then
-        uninstall
-        makeClean
-    else
-        printToConsole "Aborting Helm uninstall"
-    fi
-else
-    uninstall
-fi
+uninstall
+term
