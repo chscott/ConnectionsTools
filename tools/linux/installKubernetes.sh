@@ -203,8 +203,12 @@ function install() {
 
     # Disable SELinux if enabled
     if [[ "$(commandExists "setenforce")" == "true" ]]; then
-        outputOperation "Disabling SELinux..."
-        setenforce 0 && pass || fail
+        if [[ "$(isSELinuxEnforcing)" == "true" ]]; then
+            outputOperation "Disabling SELinux..."
+            setenforce 0 && pass || fail
+        else
+            outputToLog "SELinux is already in permissive mode"
+        fi
     fi
 
     # CentOS/RHEL/Fedora

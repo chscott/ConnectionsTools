@@ -211,6 +211,22 @@ function isDTypeEnabledForDirectory() {
 
 }
 
+# Checks to see if SELinux is in enforcing mode
+function isSELinuxEnforcing() {
+
+    local mode="false"
+
+    if [[ "$(commandExists "sestatus")" == "true" ]]; then
+        mode="$(sestatus | grep "Current mode:" | awk '{print $3}')"
+        if [[ "${mode}" == "enforcing" ]]; then
+            mode="true"
+        fi
+    fi
+
+    echo "${mode}"
+
+}
+
 # Verify that a given directory exists
 function directoryExists() {
 
