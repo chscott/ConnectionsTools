@@ -1,7 +1,21 @@
 ## installDocker
 
-The installDocker tool installs Docker CE 17.03 to support Component Pack 6.0.0.6. The tool allows you to install four
-possible storage drivers, depending on the system configuration. Those drivers are, in order of selection preference:
+The installDocker tool installs Docker CE 17.03 to support Component Pack 6.0.0.6 on the following platforms:
+
+* CentOS 7
+
+* RHEL 7
+
+* Fedora 25
+
+* Debian 9
+
+* Ubuntu 16.04
+
+Note that while installDocker supports RHEL 7, Docker CE does not officially support RHEL.
+
+The tool allows you to install four possible storage drivers, depending on the system configuration. Those drivers are, in 
+order of selection preference:
 
 * overlay2
 
