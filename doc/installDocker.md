@@ -1,6 +1,18 @@
 ## installDocker
 
-The installDocker tool installs Docker CE 17.03 to support Component Pack 6.0.0.6.
+The installDocker tool installs Docker CE 17.03 to support Component Pack 6.0.0.6. The tool allows you to install four
+possible storage drivers, depending on the system configuration. Those drivers are, in order of selection preference:
+
+* overlay2
+
+* aufs
+
+* devicemapper-direct
+
+* devicemapper-loop
+
+Note that devicemapper-loop is strongly discouraged for production use. However, it may be suitable for a development or
+proof-of-concept deployment.
 
 ### Syntax
 
@@ -33,24 +45,43 @@ $ sudo installDocker.sh [OPTIONS]
 
 ### Examples
 
-Get a list of all CFC v1 ports that are currently in use:
+Check to see if the current system meets the requirements to install Component Pack 6.0.0.6. This example includes the 
+--direct-lvm-device option so the specified device can be scanned to see if it meets minimum requirements.
 
 ```Shell
-$ sudo checkCFCPorts.sh
-The following ports must be available but are already in use:
-80
-179
-443
-...
+$ sudo installDocker.sh --check --direct-lvm-device /dev/sdb
+
+Component Pack 6.0.0.6 requirements:
+
+Requirement             Found                   Requires
+-----------             -----                   --------
+Distro:                 centos                  centos, rhel*, fedora, debian or ubuntu
+Version:                7.3                     7.x
+Machine architecture:   x86_64                  x86_64
+Logical cores:          2                       At least 2
+Available memory:       2875500                 At least 2097152
+Total swap:             0                       Must be 0
+
+Supported for Component Pack: Yes
+
+Storage driver          Available
+--------------          ---------
+overlay2                Yes
+aufs                    No
+devicemapper-direct     Yes
+devicemapper-loop       Yes
 ```
 
-Get a list of all CFC v2 ports that are currently in use:
+Install Docker with the most preferred storage driver available on the current system.
 
 ```Shell
-$ sudo checkCFCPorts.sh --v2
-The following ports must be available but are already in use:
-80
-179
-443
-...
+$ sudo installDocker.sh
+```
+
+Install Docker with the devicemapper-direct storage driver. Note that the specified device must be an unusued block device.
+If you are installing on a virtual machine, this is as simple as adding a new hard disk to the VM configuration. You can also
+use an empty partition.
+
+```Shell
+$ sudo installDocker.sh --force-devicemapper --direct-lvm-device /dev/sdb
 ```
