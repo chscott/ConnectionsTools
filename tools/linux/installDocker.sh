@@ -27,6 +27,7 @@ function init() {
     forceAufsStorageDriver="false"    
     directLvmDevice=""
     selectedStorageDriver=""
+    isRegistryNode="false"
     warnings="false"
 
     while [[ ${#} > 0 ]]; do
@@ -48,6 +49,9 @@ function init() {
                 shift;;
             --force-devicemapper)
                 forceDMStorageDriver="true"
+                shift;;
+            --registry-node)
+                isRegistryNode="true"
                 shift;;
             --direct-lvm-device)
                 directLvmDevice="${value}"
@@ -94,6 +98,9 @@ function usage() {
     outputToTerminal "--direct-lvm-device <block device>"
     outputToTerminal "  Provide a block device to use for configuring devicemapper in the direct-lvm mode."
     outputToTerminal "  Include with --check to see if the system supports devicemapper with direct-lvm."
+    outputToTerminal ""
+    outputToTerminal "--registry-node"
+    outputToTerminal "  Deploy a local Docker registry on this node."
 
 }
 
@@ -935,6 +942,31 @@ function configAutoStart() {
 
 }
 
+# Deploy a Docker registry on this node
+function configRegistry() {
+
+    local distro="$(getDistro)"
+    local registryPort="5000"
+
+    # Configure the firewall
+    if [[ "${distro}" == "centos" || "${distro}" == "rhel" || "${distro}" == "fedora" ]]; then
+        outputOperation "Opening port ${registryPort}..."
+        firewall-cmd "--add-port=${registryPort}/tcp" --permanent && pass || warn
+        outputOperation "Reloading firewall rules..."
+        firewall-cmd --reload && pass || warn
+    elif [[ "${distro}" == "debian" || "${distro}" == "ubuntu" ]]; then
+        outputOperation "Opening port ${registryPort}..."
+        ufw allow "${registryPort}/tcp" && pass || warn
+        outputOperation "Reloading firewall rules..."
+        ufw reload && pass || warn
+    fi
+
+    # Run the registry image
+    outputOperation "Creating local image registry..."
+    docker run --detach --publish "5000:5000" --restart=always --name "registry" "registry:2" && pass || fail
+
+}
+
 # Report status
 function term() {
 
@@ -964,5 +996,8 @@ else
     install
     configStorageDriver
     configAutoStart
+    if [[ "${isRegistryNode}" == "true" ]]; then
+        configRegistry
+    fi
     term
 fi 

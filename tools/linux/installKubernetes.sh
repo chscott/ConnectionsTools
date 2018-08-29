@@ -355,6 +355,9 @@ function configMasterNode() {
     outputOperation "Installing Calico calico.yaml..."
     kubectl apply --filename "${calicoUrl}/kubernetes-datastore/calico-networking/1.7/calico.yaml" && pass || fail
 
+    # Create the Connections namespace
+    kubectl create namespace connections
+
 }
 
 # Set up this node as a worker node

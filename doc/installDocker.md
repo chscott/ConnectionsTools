@@ -56,6 +56,11 @@ $ sudo installDocker.sh [OPTIONS]
 
     Provides a block device to use for configuring devicemapper in direct-lvm mode.
     Include with --check to see if the system supports devicemapper with direct-lvm.
+    
+* --registry-node
+
+    Deploys a local Docker registry on the node. A Docker registry is needed to store Component Pack images on one node in
+    the deployment.
 
 ### Examples
 
@@ -98,4 +103,12 @@ use an empty partition.
 
 ```Shell
 $ sudo installDocker.sh --force-devicemapper --direct-lvm-device /dev/sdb
+```
+
+Install Docker and deploy a local image registry.
+
+Install Docker with the most preferred storage driver available on the current system.
+
+```Shell
+$ sudo installDocker.sh --registry-node
 ```
