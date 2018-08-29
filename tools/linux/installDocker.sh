@@ -67,13 +67,6 @@ function init() {
         exitWithError "The --force-devicemapper and --force-aufs options cannot be used together"
     fi
 
-    # If RHEL, --force-rhel-install must be provided to install
-    if [[ "$(getDistro)" == "rhel" ]]; then
-        if [[ "${forceRHELInstall}" != "true" ]]; then
-            exitWithoutError "The docker-ce package is not officially supported on RHEL. Use the --force-rhel-install option to install anyway."
-        fi
-    fi
-
 }
 
 # Print the usage text to the terminal
@@ -989,6 +982,12 @@ if [[ "${checkRequirements}" == "true" ]]; then
     checkForRequirements "${terminal}"
 else
     # Do the install
+    # If RHEL, --force-rhel-install must be provided to install
+    if [[ "$(getDistro)" == "rhel" ]]; then
+        if [[ "${forceRHELInstall}" != "true" ]]; then
+            exitWithoutError "The docker-ce package is not officially supported on RHEL. Use the --force-rhel-install option to install anyway."
+        fi
+    fi
     checkForRequirements "${logFile}"
     checkForPrereqs
     checkForObsoletePackages
