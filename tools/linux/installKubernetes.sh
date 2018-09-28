@@ -344,6 +344,12 @@ function configMasterNode() {
         ufw reload && pass || warn
     fi
 
+    # Update bridge-nf-call-ip6tables and bridge-nf-call-iptables
+    outputOperation "Configuring bridge-nf-call-ip6tables to use firewall..."
+    printf "1" >>"/proc/sys/net/bridge/bridge-nf-call-ip6tables" && pass || fail
+    outputOperation "Configuring bridge-nf-call-iptables to use firewall..."
+    printf "1" >>"/proc/sys/net/bridge/bridge-nf-call-iptables" && pass || fail
+
     # Initialize the cluster
     outputOperation "Initializing cluster. This may take several minutes..."
     kubeadm init --pod-network-cidr="192.168.0.0/16" && pass || fail
@@ -356,7 +362,8 @@ function configMasterNode() {
     kubectl apply --filename "${calicoUrl}/kubernetes-datastore/calico-networking/1.7/calico.yaml" && pass || fail
 
     # Create the Connections namespace
-    kubectl create namespace connections
+    outputOperation "Creating connections namespace..."
+    kubectl create namespace connections && pass || fail
 
 }
 
@@ -415,6 +422,7 @@ function term() {
         else
             outputToTerminal "Kubernetes cluster initialized with warnings on ${thisNode}. Review ${logFile} for additional details."
         fi
+        outputToTerminal ""
         outputToTerminal "Use the command that follows to join other nodes to the cluster."
         outputToTerminal "Note: The token expires in 24 hours. To generate a new one, run 'kubeadm token create' on master node ${thisNode}."
         outputToTerminal ""
@@ -430,6 +438,7 @@ function term() {
         else
             outputToTerminal "Kubernetes worker node ${thisNode} initialized with warnings. Review ${logFile} for additional details."
         fi
+        outputToTerminal ""
         outputToTerminal "Enter the 'kubeadmn join' command to add this node to your cluster."
         outputToTerminal "If it has been less than 24 hours since you initialized the cluster, you can run ${joinClusterScript}."
         outputToTerminal "Otherwise, you will need to generate a new token on the master node using the 'kubeadm token create' command."

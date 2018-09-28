@@ -286,6 +286,19 @@ function commandExists() {
 
 }
 
+# Determine the user who invoked a command with sudo (i.e. the "actual" user)
+function getActualUser() {
+
+    local actualUser=""
+
+    if [[ "$(commandExists "who")" == "true" ]]; then
+        actualUser="$(who am i | awk '{print $1}')"
+    fi
+
+    echo "${actualUser}"
+
+} 
+
 # End of Operating System section ==========================================================================================================
 
 # Section: DB2 ===========================================================================================================================+=

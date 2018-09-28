@@ -2,11 +2,12 @@
 
 function usage() {
 
-    log "Usage: getAppLogs.sh --profile PROFILE [--app APP] [--duration DURATION]"
+    log "Usage: getAppLogs.sh --profile PROFILE [--app APP] [--duration DURATION] [--severity SEVERITY]"
     log ""
     log "(Required) PROFILE is the name of a WebSphere profile"
     log "(Optional) APP is any valid WebSphere application name"
     log "(Optional) DURATION is an integer representing minutes of logging to retrieve or the special values 'today', 'lastHour' or 'monitor'"
+    log "(Optional) SEVERITY is the minimum level of logs to retrieve ('warning' or 'fatal'). Omit to retrieve all levels"
     log ""
     log "Examples:"
     log ""
@@ -16,8 +17,8 @@ function usage() {
     log "Get all logs from today (i.e. since 12:00 AM):"
     log "$ sudo getAppLogs.sh --profile profile1 --duration today"
     log ""
-    log "Get logs for the News app from the last hour:"
-    log "$ sudo getAppLogs.sh --profile profile1 --app News --duration lastHour"
+    log "Get warning logs for the News app from the last hour:"
+    log "$ sudo getAppLogs.sh --profile profile1 --app News --duration lastHour --severity warning"
     log ""
     log "Get logs for the News app from the last 5 minutes:"
     log "$ sudo getAppLogs.sh --profile profile1 --app News --duration 5"
@@ -62,6 +63,9 @@ function init() {
             --duration)
                 duration="${value}"
                 shift;shift;;
+            --severity)
+                severity="${value}"
+                shift;shift;;
             --help)
                 usage
                 exit 0;;
@@ -85,8 +89,8 @@ function init() {
     fi 
 
     # Verify that HPEL logging is configured
-    if [[ $(find "${wasProfileRoot}/${profile}/logs" -name "hpelRepository.owner" | wc -l) == 0 ]]; then
-        log "HPEL logging is not enabled for this profile. Exiting."
+    if ! find "${wasProfileRoot}/${profile}/logs" -name "hpelRepository.owner" 2>/dev/null; then
+        log "No HPEL log repository exists for this profile. Exiting."
         exit 1
     fi
 
@@ -96,6 +100,11 @@ function init() {
         app="All"
     else
         getAllApps="false"
+    fi
+
+    # If the severity level doesn't match a supported level, get all levels
+    if [[ -z "${severity}" || ("${severity}" != "warning" && "${severity}" != "fatal") ]]; then
+        severity="all"
     fi
 
     # Script variables
@@ -110,43 +119,43 @@ init "${@}"
 # No time length provided so get everything 
 if [[ -z "${duration}" ]]; then
     if [[ "${getAllApps}" == "true" ]]; then
-        log "Getting all log messages for all applications..."
-        "${logViewer}" "-outLog" "${logFile}"
+        log "Getting ${severity} log messages for all applications..."
+        "${logViewer}" "-minLevel" "${severity}" "-outLog" "${logFile}"
     else
-        log "Getting all log messages for the ${app} application..."
-        "${logViewer}" "-includeExtensions" "appName=${app}" "-outLog" "${logFile}"
+        log "Getting ${severity} log messages for the ${app} application..."
+        "${logViewer}" "-includeExtensions" "appName=${app}" "-minLevel" "${severity}" "-outLog" "${logFile}"
     fi
 
 # Special time length value 'today' so get everything since midnight
 elif [[ "${duration}" == "today" ]]; then
     midnight="$(date +%m/%d/%y)" 
     if [[ "${getAllApps}" == "true" ]]; then
-        log "Getting all log messages on ${midnight} for all applications..."
-        "${logViewer}" "-startDate" "${midnight}" "-outLog" "${logFile}"
+        log "Getting ${severity} log messages on ${midnight} for all applications..."
+        "${logViewer}" "-startDate" "${midnight}" "-minLevel" "${severity}" "-outLog" "${logFile}"
     else
-        log "Getting all log messages on ${midnight} for the ${app} application..." 
-        "${logViewer}" "-includeExtensions" "appName=${app}" "-startDate" "${midnight}" "-outLog" "${logFile}"
+        log "Getting ${severity} log messages on ${midnight} for the ${app} application..." 
+        "${logViewer}" "-includeExtensions" "appName=${app}" "-startDate" "${midnight}" "-minLevel" "${severity}" "-outLog" "${logFile}"
     fi
 
 # Special time length value 'lastHour' so get everything for last 60 minutes
 elif [[ "${duration}" == "lastHour" ]]; then
     oneHourAgo="$(date -d "1 hour ago" "${timeFormat}")"
     if [[ "${getAllApps}" == "true" ]]; then
-        log "Getting all log messages since ${oneHourAgo} for all applications..."
-        "${logViewer}" "-startDate" "${oneHourAgo}" "-outLog" "${logFile}"
+        log "Getting ${severity} log messages since ${oneHourAgo} for all applications..."
+        "${logViewer}" "-startDate" "${oneHourAgo}" "-minLevel" "${severity}" "-outLog" "${logFile}"
     else
-        log "Getting all log messages since ${oneHourAgo} for the ${app} application..."
-        "${logViewer}" "-includeExtensions" "appName=${app}" "-startDate" "${oneHourAgo}" "-outLog" "${logFile}"
+        log "Getting ${severity} log messages since ${oneHourAgo} for the ${app} application..."
+        "${logViewer}" "-includeExtensions" "appName=${app}" "-startDate" "${oneHourAgo}" "-minLevel" "${severity}" "-outLog" "${logFile}"
     fi
 
 # Special time length value 'monitor' so tail the logs
 elif [[ "${duration}" == "monitor" ]]; then
     if [[ "${getAllApps}" == "true" ]]; then
-        log "Monitoring log messages for all applications (Ctrl-C to stop)..."
-        "${logViewer}" "-monitor" 1
+        log "Monitoring ${severity} log messages for all applications (Ctrl-C to stop)..."
+        "${logViewer}" "-minLevel" "${severity}" "-monitor" 1
     else
-        log "Monitoring log messages for the ${app} application (Ctrl-C to stop)..."
-        "${logViewer}" "-includeExtensions" "appName=${app}" "-monitor" 1
+        log "Monitoring ${severity} log messages for the ${app} application (Ctrl-C to stop)..."
+        "${logViewer}" "-includeExtensions" "appName=${app}" "-minLevel" "${severity}" "-monitor" 1
     fi
 
 # Time length specified as integer so get that many minutes of logging
@@ -154,11 +163,11 @@ elif [[ "${duration}" =~ ^[0-9]+$ ]]; then
     duration="${duration} minutes ago"
     nMinutesAgo="$(date -d "${duration}" "${timeFormat}")"
     if [[ "${getAllApps}" == "true" ]]; then
-        log "Getting all log messages since ${nMinutesAgo} for all applications..."
-        "${logViewer}" "-startDate" "${nMinutesAgo}" "-outLog" "${logFile}"
+        log "Getting ${severity} log messages since ${nMinutesAgo} for all applications..."
+        "${logViewer}" "-startDate" "${nMinutesAgo}" "-minLevel" "${severity}" "-outLog" "${logFile}"
     else
-        log "Getting all log messages since ${nMinutesAgo} for the ${app} application..."
-        "${logViewer}" "-includeExtensions" "appName=${app}" "-startDate" "${nMinutesAgo}" "-outLog" "${logFile}"
+        log "Getting ${severity} log messages since ${nMinutesAgo} for the ${app} application..."
+        "${logViewer}" "-includeExtensions" "appName=${app}" "-startDate" "${nMinutesAgo}" "-minLevel" "${severity}" "-outLog" "${logFile}"
     fi
 
 # Invalid value

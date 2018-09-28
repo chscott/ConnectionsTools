@@ -130,7 +130,11 @@ function uninstall() {
          
     # Uninstall server
     outputOperation "Uninstalling Helm server. This make take a few minutes..."
-    helm reset --force && pass || fail
+    if [[ "$(commandExists helm)" == "true" ]]; then 
+        helm reset --force && pass || fail
+    else
+        pass
+    fi
 
     # Uninstall client
     outputOperation "Uninstalling Helm client..."
