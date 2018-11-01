@@ -5,7 +5,7 @@ public class ConvertUUIDToPath {
 	public static void main(String[] args) {
 		
 		if (args.length != 1) {
-			System.out.println("Usage...");
+			System.out.println("Usage: java -cp . ConvertUUIDToPath <FILE_ID UUID>");
 			System.exit(1);
 		}
 		
